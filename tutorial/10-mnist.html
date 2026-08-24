@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST - Java DL Tutorial</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="nav">
+    <div class="container nav-inner">
+        <a href="index.html">Home</a>
+        <a href="01-tensors.html">Tensors</a>
+        <a href="02-neural-networks.html">Networks</a>
+        <a href="03-dense-layer.html">Dense</a>
+        <a href="04-activations.html">Activations</a>
+        <a href="05-forward-propagation.html">Forward Pass</a>
+        <a href="06-loss-functions.html">Loss</a>
+        <a href="07-backpropagation.html">Backprop</a>
+        <a href="08-gradient-descent.html">Optimization</a>
+        <a href="09-training.html">Training</a>
+        <a href="10-mnist.html">MNIST</a>
+        <a href="11-evaluation.html">Evaluation</a>
+    </div>
+</nav>
+
+<header class="page-header">
+    <div class="container">
+        <p class="eyebrow">10 / DATASET</p>
+        <h1>MNIST Classification</h1>
+        <p>Using the library to recognize handwritten digits.</p>
+    </div>
+</header>
+
+<main class="container">
+
+<section>
+    <h2>What is MNIST?</h2>
+
+    <p>
+        MNIST is a dataset of handwritten digits from 0 through 9.
+        It is commonly used as a beginner dataset for image classification.
+    </p>
+
+    <p>
+        Each image is 28 × 28 grayscale pixels.
+    </p>
+</section>
+
+<section>
+    <h2>Input size</h2>
+
+    <pre><code>
+28 × 28 = 784 pixels
+    </code></pre>
+
+    <p>
+        Our dense network expects 784 input values, so we flatten each
+        image into a vector.
+    </p>
+</section>
+
+<section>
+    <h2>Pixel normalization</h2>
+
+    <p>
+        MNIST pixels normally contain integer values from 0 to 255.
+    </p>
+
+    <p>
+        We divide by 255:
+    </p>
+
+    <div class="formula">
+        normalized = pixel / 255
+    </div>
+
+    <p>
+        Therefore values become approximately:
+    </p>
+
+    <pre><code>
+0     → 0.0
+128   → 0.502
+255   → 1.0
+    </code></pre>
+</section>
+
+<section>
+    <h2>MNIST file format</h2>
+
+    <p>
+        MNIST is stored in the IDX binary format.
+        The files contain headers followed by raw image or label data.
+    </p>
+
+    <p>
+        Our loader reads the binary data using Java's
+        <code>DataInputStream</code>.
+    </p>
+</section>
+
+<section>
+    <h2>Image file header</h2>
+
+    <p>
+        The image file contains:
+    </p>
+
+    <ol>
+        <li>Magic number</li>
+        <li>Number of images</li>
+        <li>Number of rows</li>
+        <li>Number of columns</li>
+        <li>Pixel bytes</li>
+    </ol>
+</section>
+
+<section>
+    <h2>Labels</h2>
+
+    <p>
+        Each image has a label from 0 through 9.
+    </p>
+
+    <pre><code>
+image #1 → 5
+image #2 → 0
+image #3 → 4
+image #4 → 1
+...
+    </code></pre>
+</section>
+
+<section>
+    <h2>The MNIST network</h2>
+
+    <pre><code>NeuralNetwork network =
+    new NeuralNetwork()
+
+        .add(new DenseLayer(784, 128))
+        .add(new ReLU())
+
+        .add(new DenseLayer(128, 64))
+        .add(new ReLU())
+
+        .add(new DenseLayer(64, 10))
+        .add(new Softmax());</code></pre>
+</section>
+
+<section>
+    <h2>Why 10 output neurons?</h2>
+
+    <p>
+        There are ten possible classes:
+    </p>
+
+    <pre><code>
+0 1 2 3 4 5 6 7 8 9
+    </code></pre>
+
+    <p>
+        Therefore the final layer has ten outputs.
+    </p>
+</section>
+
+<section>
+    <h2>Complete training example</h2>
+
+    <pre><code>MNISTLoader.Dataset train =
+    MNISTLoader.load(
+        "data/train-images-idx3-ubyte",
+        "data/train-labels-idx1-ubyte"
+    );
+
+NeuralNetwork network =
+    new NeuralNetwork()
+        .add(new DenseLayer(784, 128))
+        .add(new ReLU())
+        .add(new DenseLayer(128, 64))
+        .add(new ReLU())
+        .add(new DenseLayer(64, 10))
+        .add(new Softmax());
+
+Trainer trainer =
+    new Trainer(
+        network,
+        new SGD(0.01),
+        new CrossEntropyLoss()
+    );
+
+trainer.fit(
+    train.images(),
+    train.labels(),
+    10,
+    32
+);</code></pre>
+</section>
+
+<div class="callout">
+    <strong>Key idea:</strong>
+    MNIST is not fundamentally different from other classification
+    problems. It is simply a convenient dataset for demonstrating the
+    complete learning pipeline.
+</div>
+
+<div class="pager">
+    <a href="09-training.html">← Training</a>
+    <a href="11-evaluation.html">Next: Evaluation →</a>
+</div>
+
+</main>
+
+<footer>
+    <div class="container">Deep Learning from Scratch in Java</div>
+</footer>
+
+</body>
+</html>

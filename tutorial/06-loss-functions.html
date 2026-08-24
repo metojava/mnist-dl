@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loss Functions - Java DL Tutorial</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="nav">
+    <div class="container nav-inner">
+        <a href="index.html">Home</a>
+        <a href="01-tensors.html">Tensors</a>
+        <a href="02-neural-networks.html">Networks</a>
+        <a href="03-dense-layer.html">Dense</a>
+        <a href="04-activations.html">Activations</a>
+        <a href="05-forward-propagation.html">Forward Pass</a>
+        <a href="06-loss-functions.html">Loss</a>
+        <a href="07-backpropagation.html">Backprop</a>
+        <a href="08-gradient-descent.html">Optimization</a>
+        <a href="09-training.html">Training</a>
+        <a href="10-mnist.html">MNIST</a>
+        <a href="11-evaluation.html">Evaluation</a>
+    </div>
+</nav>
+
+<header class="page-header">
+    <div class="container">
+        <p class="eyebrow">06 / OBJECTIVE</p>
+        <h1>Loss Functions</h1>
+        <p>Measuring how wrong the neural network is.</p>
+    </div>
+</header>
+
+<main class="container">
+
+<section>
+    <h2>Why do we need a loss?</h2>
+
+    <p>
+        The network produces predictions, but we need a numerical way
+        to describe how good or bad those predictions are.
+    </p>
+
+    <p>
+        That number is called the loss.
+    </p>
+
+    <div class="callout">
+        Lower loss generally means the predictions are closer to the
+        desired targets.
+    </div>
+</section>
+
+<section>
+    <h2>Cross-entropy</h2>
+
+    <p>
+        For classification we use cross-entropy loss.
+    </p>
+
+    <div class="formula">
+        L = -log(pᵧ)
+    </div>
+
+    <p>
+        Here <code>pᵧ</code> is the probability assigned to the correct class.
+    </p>
+</section>
+
+<section>
+    <h2>Example</h2>
+
+    <p>
+        Suppose the correct digit is 7.
+    </p>
+
+    <p>
+        If the network gives digit 7 a probability of 0.9:
+    </p>
+
+    <pre><code>
+loss = -log(0.9)
+     ≈ 0.105
+    </code></pre>
+
+    <p>
+        That's a small loss.
+    </p>
+
+    <p>
+        If it gives digit 7 a probability of 0.01:
+    </p>
+
+    <pre><code>
+loss = -log(0.01)
+     ≈ 4.605
+    </code></pre>
+
+    <p>
+        That's a much larger loss.
+    </p>
+</section>
+
+<section>
+    <h2>Our Java implementation</h2>
+
+    <pre><code>double probability =
+    Math.max(
+        predictions.get(i, label),
+        EPSILON
+    );
+
+totalLoss -= Math.log(probability);</code></pre>
+
+    <p>
+        The small epsilon prevents taking the logarithm of zero.
+    </p>
+</section>
+
+<section>
+    <h2>Average batch loss</h2>
+
+    <p>
+        For a batch containing multiple examples, we average their losses:
+    </p>
+
+    <div class="formula">
+        L = (1/N) Σ Lᵢ
+    </div>
+
+    <p>
+        Averaging gives us a loss value that is independent of the
+        particular batch size.
+    </p>
+</section>
+
+<section>
+    <h2>Loss is more than a score</h2>
+
+    <p>
+        The loss is also the starting point for backpropagation.
+    </p>
+
+    <pre><code>
+Prediction
+     ↓
+   Loss
+     ↓
+  Gradient
+     ↓
+Backpropagation
+     ↓
+Weight updates
+    </code></pre>
+</section>
+
+<div class="callout">
+    <strong>Key idea:</strong>
+    The network learns by changing its parameters so that the loss becomes
+    smaller.
+</div>
+
+<div class="pager">
+    <a href="05-forward-propagation.html">← Forward Propagation</a>
+    <a href="07-backpropagation.html">Next: Backpropagation →</a>
+</div>
+
+</main>
+
+<footer>
+    <div class="container">Deep Learning from Scratch in Java</div>
+</footer>
+
+</body>
+</html>

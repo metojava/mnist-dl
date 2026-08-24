@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backpropagation - Java DL Tutorial</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="nav">
+    <div class="container nav-inner">
+        <a href="index.html">Home</a>
+        <a href="01-tensors.html">Tensors</a>
+        <a href="02-neural-networks.html">Networks</a>
+        <a href="03-dense-layer.html">Dense</a>
+        <a href="04-activations.html">Activations</a>
+        <a href="05-forward-propagation.html">Forward Pass</a>
+        <a href="06-loss-functions.html">Loss</a>
+        <a href="07-backpropagation.html">Backprop</a>
+        <a href="08-gradient-descent.html">Optimization</a>
+        <a href="09-training.html">Training</a>
+        <a href="10-mnist.html">MNIST</a>
+        <a href="11-evaluation.html">Evaluation</a>
+    </div>
+</nav>
+
+<header class="page-header">
+    <div class="container">
+        <p class="eyebrow">07 / LEARNING</p>
+        <h1>Backpropagation</h1>
+        <p>The algorithm that tells the network how its parameters should change.</p>
+    </div>
+</header>
+
+<main class="container">
+
+<section>
+    <h2>The central problem</h2>
+
+    <p>
+        We have a network with thousands or millions of parameters.
+        How do we know which parameters should increase or decrease?
+    </p>
+
+    <p>
+        Backpropagation solves this problem by calculating gradients.
+    </p>
+</section>
+
+<section>
+    <h2>What is a gradient?</h2>
+
+    <p>
+        A gradient tells us how much a value changes when a parameter changes.
+    </p>
+
+    <p>
+        For a parameter <code>w</code>:
+    </p>
+
+    <div class="formula">
+        ∂L / ∂w
+    </div>
+
+    <p>
+        This means:
+        "How does the loss change when this weight changes?"
+    </p>
+</section>
+
+<section>
+    <h2>The chain rule</h2>
+
+    <p>
+        Neural networks are compositions of functions.
+        The chain rule lets us calculate derivatives through those
+        compositions.
+    </p>
+
+    <pre><code>
+x → f(x) → g(f(x)) → loss
+    </code></pre>
+
+    <p>
+        The derivative becomes:
+    </p>
+
+    <div class="formula">
+        dL/dx = dL/dg × dg/df × df/dx
+    </div>
+</section>
+
+<section>
+    <h2>Backward direction</h2>
+
+    <p>
+        Forward propagation moves information from input to output.
+        Backpropagation moves gradients from output back toward input.
+    </p>
+
+    <pre><code>
+FORWARD
+
+Input → Dense → ReLU → Dense → ReLU → Dense → Softmax
+                                               ↓
+                                              Loss
+
+
+BACKWARD
+
+Input ← Dense ← ReLU ← Dense ← ReLU ← Dense ← Gradient
+    </code></pre>
+</section>
+
+<section>
+    <h2>Dense layer gradients</h2>
+
+    <p>
+        For:
+    </p>
+
+    <pre><code>
+Z = XW + b
+    </code></pre>
+
+    <p>
+        the important derivatives are:
+    </p>
+
+    <pre><code>
+dW = Xᵀ dZ
+
+db = Σ dZ
+
+dX = dZ Wᵀ
+    </code></pre>
+</section>
+
+<section>
+    <h2>Our Java code</h2>
+
+    <pre><code>weightGradients =
+    input.transpose()
+         .matmul(gradient);
+
+biasGradients =
+    gradient.sumRows();
+
+return gradient
+    .matmul(weights.transpose());</code></pre>
+
+    <p>
+        The first expression calculates the weight gradients.
+        The second calculates bias gradients.
+        The third sends the gradient to the previous layer.
+    </p>
+</section>
+
+<section>
+    <h2>Backpropagation through the network</h2>
+
+    <pre><code>public Tensor backward(Tensor gradient) {
+
+    Tensor result = gradient;
+
+    for (int i = layers.size() - 1; i >= 0; i--) {
+        result =
+            layers.get(i).backward(result);
+    }
+
+    return result;
+}</code></pre>
+
+    <p>
+        Notice that the layers are traversed in reverse order.
+    </p>
+</section>
+
+<div class="callout">
+    <strong>Key idea:</strong>
+    Backpropagation doesn't directly change the weights.
+    It calculates the gradients. The optimizer uses those gradients
+    to change the weights.
+</div>
+
+<div class="pager">
+    <a href="06-loss-functions.html">← Loss Functions</a>
+    <a href="08-gradient-descent.html">Next: Gradient Descent →</a>
+</div>
+
+</main>
+
+<footer>
+    <div class="container">Deep Learning from Scratch in Java</div>
+</footer>
+
+</body>
+</html>

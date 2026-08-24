@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Networks - Java DL Tutorial</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="nav">
+    <div class="container nav-inner">
+        <a href="index.html">Home</a>
+        <a href="01-tensors.html">Tensors</a>
+        <a href="02-neural-networks.html">Networks</a>
+        <a href="03-dense-layer.html">Dense</a>
+        <a href="04-activations.html">Activations</a>
+        <a href="05-forward-propagation.html">Forward Pass</a>
+        <a href="06-loss-functions.html">Loss</a>
+        <a href="07-backpropagation.html">Backprop</a>
+        <a href="08-gradient-descent.html">Optimization</a>
+        <a href="09-training.html">Training</a>
+        <a href="10-mnist.html">MNIST</a>
+        <a href="11-evaluation.html">Evaluation</a>
+    </div>
+</nav>
+
+<header class="page-header">
+    <div class="container">
+        <p class="eyebrow">02 / ARCHITECTURE</p>
+        <h1>Neural Networks</h1>
+        <p>Understanding neurons, layers, weights and biases.</p>
+    </div>
+</header>
+
+<main class="container">
+
+<section>
+    <h2>What is a neural network?</h2>
+
+    <p>
+        A neural network is a mathematical function made from multiple
+        connected layers.
+    </p>
+
+    <p>
+        The network receives an input, transforms it through several
+        layers, and produces an output.
+    </p>
+
+    <pre><code>
+Input
+  ↓
+Layer 1
+  ↓
+Layer 2
+  ↓
+Layer 3
+  ↓
+Output
+    </code></pre>
+</section>
+
+<section>
+    <h2>A neuron</h2>
+
+    <p>
+        A basic neuron calculates a weighted sum of its inputs.
+    </p>
+
+    <pre><code>
+z = x₁w₁ + x₂w₂ + x₃w₃ + b
+    </code></pre>
+
+    <p>
+        Here:
+    </p>
+
+    <ul>
+        <li><strong>x</strong> = input</li>
+        <li><strong>w</strong> = weight</li>
+        <li><strong>b</strong> = bias</li>
+        <li><strong>z</strong> = weighted result</li>
+    </ul>
+</section>
+
+<section>
+    <h2>Weights</h2>
+
+    <p>
+        Weights determine how strongly one input affects a neuron.
+    </p>
+
+    <p>
+        During training the network learns good values for these weights.
+    </p>
+</section>
+
+<section>
+    <h2>Bias</h2>
+
+    <p>
+        A bias allows a neuron to shift its activation.
+    </p>
+
+    <pre><code>
+z = wx + b
+    </code></pre>
+
+    <p>
+        Without a bias, the function is forced to pass through zero.
+        The bias gives the network additional flexibility.
+    </p>
+</section>
+
+<section>
+    <h2>Layers</h2>
+
+    <p>
+        A layer contains multiple neurons.
+    </p>
+
+    <p>
+        Our MNIST network will contain:
+    </p>
+
+    <pre><code>
+784 inputs
+   ↓
+128 neurons
+   ↓
+64 neurons
+   ↓
+10 neurons
+    </code></pre>
+</section>
+
+<section>
+    <h2>The network in Java</h2>
+
+    <pre><code>NeuralNetwork network =
+    new NeuralNetwork()
+
+        .add(new DenseLayer(784, 128))
+        .add(new ReLU())
+
+        .add(new DenseLayer(128, 64))
+        .add(new ReLU())
+
+        .add(new DenseLayer(64, 10))
+        .add(new Softmax());</code></pre>
+
+    <p>
+        This API makes the architecture readable from top to bottom.
+    </p>
+</section>
+
+<section>
+    <h2>What does "deep" mean?</h2>
+
+    <p>
+        A neural network with multiple learnable layers is commonly called
+        a deep neural network.
+    </p>
+
+    <p>
+        The word "deep" refers primarily to the number of layers through
+        which information passes.
+    </p>
+</section>
+
+<div class="callout">
+    <strong>Key idea:</strong>
+    The network itself does not "know" what a handwritten digit is.
+    It learns numerical parameters that allow it to transform pixel values
+    into useful predictions.
+</div>
+
+<div class="pager">
+    <a href="01-tensors.html">← Tensors</a>
+    <a href="03-dense-layer.html">Next: Dense Layers →</a>
+</div>
+
+</main>
+
+<footer>
+    <div class="container">Deep Learning from Scratch in Java</div>
+</footer>
+
+</body>
+</html>

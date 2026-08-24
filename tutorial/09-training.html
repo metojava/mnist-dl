@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training - Java DL Tutorial</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="nav">
+    <div class="container nav-inner">
+        <a href="index.html">Home</a>
+        <a href="01-tensors.html">Tensors</a>
+        <a href="02-neural-networks.html">Networks</a>
+        <a href="03-dense-layer.html">Dense</a>
+        <a href="04-activations.html">Activations</a>
+        <a href="05-forward-propagation.html">Forward Pass</a>
+        <a href="06-loss-functions.html">Loss</a>
+        <a href="07-backpropagation.html">Backprop</a>
+        <a href="08-gradient-descent.html">Optimization</a>
+        <a href="09-training.html">Training</a>
+        <a href="10-mnist.html">MNIST</a>
+        <a href="11-evaluation.html">Evaluation</a>
+    </div>
+</nav>
+
+<header class="page-header">
+    <div class="container">
+        <p class="eyebrow">09 / TRAINING</p>
+        <h1>The Training Loop</h1>
+        <p>Putting forward propagation, loss, backpropagation and optimization together.</p>
+    </div>
+</header>
+
+<main class="container">
+
+<section>
+    <h2>The complete algorithm</h2>
+
+    <ol>
+        <li>Select a batch.</li>
+        <li>Run forward propagation.</li>
+        <li>Calculate the loss.</li>
+        <li>Calculate the loss gradient.</li>
+        <li>Run backpropagation.</li>
+        <li>Update the parameters.</li>
+        <li>Repeat.</li>
+    </ol>
+</section>
+
+<section>
+    <h2>Training loop</h2>
+
+    <pre><code>for each epoch:
+
+    shuffle training data
+
+    for each batch:
+
+        predictions =
+            network.forward(batchX)
+
+        loss =
+            lossFunction.forward(
+                predictions,
+                batchY
+            )
+
+        gradient =
+            lossFunction.backward(
+                predictions,
+                batchY
+            )
+
+        network.backward(gradient)
+
+        network.update(learningRate)</code></pre>
+</section>
+
+<section>
+    <h2>Epoch</h2>
+
+    <p>
+        An epoch means processing the entire training dataset once.
+    </p>
+
+    <p>
+        If MNIST contains 60,000 training images, then one epoch means
+        the network has processed all 60,000 images.
+    </p>
+</section>
+
+<section>
+    <h2>Batch size</h2>
+
+    <p>
+        If the batch size is 32:
+    </p>
+
+    <pre><code>
+60,000 / 32 ≈ 1,875 batches
+    </code></pre>
+
+    <p>
+        Each batch results in a parameter update.
+    </p>
+</section>
+
+<section>
+    <h2>Why shuffle?</h2>
+
+    <p>
+        We randomly reorder the training examples at the beginning
+        of each epoch.
+    </p>
+
+    <p>
+        This prevents the model from repeatedly seeing the same
+        ordering of examples.
+    </p>
+</section>
+
+<section>
+    <h2>What does learning look like?</h2>
+
+    <pre><code>
+Epoch 1/10 - loss: 0.45
+Epoch 2/10 - loss: 0.23
+Epoch 3/10 - loss: 0.17
+Epoch 4/10 - loss: 0.13
+...
+Epoch 10/10 - loss: 0.06
+    </code></pre>
+
+    <p>
+        Generally we want the training loss to decrease as training
+        progresses.
+    </p>
+</section>
+
+<section>
+    <h2>When training goes wrong</h2>
+
+    <h3>Loss doesn't decrease</h3>
+
+    <ul>
+        <li>Learning rate may be inappropriate.</li>
+        <li>Gradients may be incorrect.</li>
+        <li>Input data may not be normalized.</li>
+        <li>Weight initialization may be problematic.</li>
+    </ul>
+
+    <h3>Loss becomes NaN</h3>
+
+    <ul>
+        <li>Numerical instability may be occurring.</li>
+        <li>Exponentials may overflow.</li>
+        <li>Learning rate may be too large.</li>
+    </ul>
+
+    <h3>Training is extremely slow</h3>
+
+    <ul>
+        <li>The pure Java implementation uses basic arrays.</li>
+        <li>Matrix operations are not optimized.</li>
+        <li>There is no GPU acceleration.</li>
+    </ul>
+</section>
+
+<div class="callout">
+    <strong>Key idea:</strong>
+    Training is simply repeating the same mathematical process many times
+    while gradually improving the parameters.
+</div>
+
+<div class="pager">
+    <a href="08-gradient-descent.html">← Gradient Descent</a>
+    <a href="10-mnist.html">Next: MNIST →</a>
+</div>
+
+</main>
+
+<footer>
+    <div class="container">Deep Learning from Scratch in Java</div>
+</footer>
+
+</body>
+</html>

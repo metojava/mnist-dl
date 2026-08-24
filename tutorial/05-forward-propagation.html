@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forward Propagation - Java DL Tutorial</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="nav">
+    <div class="container nav-inner">
+        <a href="index.html">Home</a>
+        <a href="01-tensors.html">Tensors</a>
+        <a href="02-neural-networks.html">Networks</a>
+        <a href="03-dense-layer.html">Dense</a>
+        <a href="04-activations.html">Activations</a>
+        <a href="05-forward-propagation.html">Forward Pass</a>
+        <a href="06-loss-functions.html">Loss</a>
+        <a href="07-backpropagation.html">Backprop</a>
+        <a href="08-gradient-descent.html">Optimization</a>
+        <a href="09-training.html">Training</a>
+        <a href="10-mnist.html">MNIST</a>
+        <a href="11-evaluation.html">Evaluation</a>
+    </div>
+</nav>
+
+<header class="page-header">
+    <div class="container">
+        <p class="eyebrow">05 / INFERENCE</p>
+        <h1>Forward Propagation</h1>
+        <p>How input data travels through the network.</p>
+    </div>
+</header>
+
+<main class="container">
+
+<section>
+    <h2>What is forward propagation?</h2>
+
+    <p>
+        Forward propagation is the process of taking an input and passing
+        it through every layer until we obtain a prediction.
+    </p>
+
+    <pre><code>
+Input
+  ↓
+Dense
+  ↓
+ReLU
+  ↓
+Dense
+  ↓
+ReLU
+  ↓
+Dense
+  ↓
+Softmax
+  ↓
+Prediction
+    </code></pre>
+</section>
+
+<section>
+    <h2>Our network's forward method</h2>
+
+    <pre><code>public Tensor forward(Tensor input) {
+
+    Tensor result = input;
+
+    for (Layer layer : layers) {
+        result = layer.forward(result);
+    }
+
+    return result;
+}</code></pre>
+
+    <p>
+        Notice how simple this method is.
+        Each layer knows how to process its own input.
+    </p>
+</section>
+
+<section>
+    <h2>Example with MNIST</h2>
+
+    <p>
+        An MNIST image has 28 × 28 pixels.
+        We flatten it into 784 numbers.
+    </p>
+
+    <pre><code>
+28 × 28 image
+      ↓
+784 values
+      ↓
+Dense(784 → 128)
+      ↓
+128 values
+      ↓
+ReLU
+      ↓
+Dense(128 → 64)
+      ↓
+64 values
+      ↓
+ReLU
+      ↓
+Dense(64 → 10)
+      ↓
+10 values
+      ↓
+Softmax
+      ↓
+10 probabilities
+    </code></pre>
+</section>
+
+<section>
+    <h2>Prediction</h2>
+
+    <p>
+        After softmax, each output corresponds to one digit.
+    </p>
+
+    <pre><code>
+index:        0      1      2      3      4
+probability: .01    .02    .03    .01    .05
+
+index:        5      6      7      8      9
+probability: .02    .04    .79    .02    .01
+    </code></pre>
+
+    <p>
+        The highest probability is class 7, so the network predicts
+        the digit <strong>7</strong>.
+    </p>
+</section>
+
+<section>
+    <h2>Argmax</h2>
+
+    <p>
+        Our tensor class contains an <code>argmaxRow()</code> method.
+        It returns the index containing the largest value.
+    </p>
+
+    <pre><code>int prediction =
+    predictions.argmaxRow(i);</code></pre>
+</section>
+
+<div class="callout">
+    <strong>Important:</strong>
+    Forward propagation is used both during training and during prediction.
+    Training adds the additional steps of calculating loss, gradients and
+    updating parameters.
+</div>
+
+<div class="pager">
+    <a href="04-activations.html">← Activations</a>
+    <a href="06-loss-functions.html">Next: Loss Functions →</a>
+</div>
+
+</main>
+
+<footer>
+    <div class="container">Deep Learning from Scratch in Java</div>
+</footer>
+
+</body>
+</html>
