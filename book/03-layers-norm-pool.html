@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part II - Normalization & Pooling - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Norm & Pool</h1>
+      <p class="lead" style="font-size:15px">BatchNorm / LayerNorm + MaxPool / AvgPool</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="active">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="active">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>5 · Normalization: BatchNorm & LayerNorm</h2>
+  <div class="grid2">
+    <div>
+      <h3>BatchNorm <span class="tag">ml/layer/BatchNorm.java</span></h3>
+      <p>Normalizes across batch: <code>y = γ·(x-μ)/√(σ²+ε) + β</code>. Tracks <code>runningMean/runningVar</code> for inference.</p>
+<pre><code>BatchNorm bn = new BatchNorm(128); // featureSize
+NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784,128))
+  .add(new BatchNorm(128))
+  .add(new ReLU())
+  .add(new DenseLayer(128,10))
+  .add(new Softmax());
+
+Tensor trainOut = net.forward(batch, true);  // uses batch stats
+Tensor testOut  = net.forward(batch, false); // uses running stats
+
+// Trainable params
+Tensor gamma = bn.gamma(); // [1,128]
+Tensor beta  = bn.beta();
+</code></pre>
+    </div>
+    <div>
+      <h3>LayerNorm <span class="tag">ml/layer/LayerNorm.java</span></h3>
+      <p>Normalizes across features per sample (Transformer staple). No running stats; always uses per-row mean/var.</p>
+<pre><code>LayerNorm ln = new LayerNorm(512);
+TransformerBlock block = new TransformerBlock(512, 8, 2048);
+
+NeuralNetwork seq = new NeuralNetwork()
+  .add(new DenseLayer(128,512))
+  .add(new LayerNorm(512))
+  .add(new TransformerBlock(512, 8, 2048))
+  .add(new DenseLayer(512, 10));
+
+// Inside TransformerBlock (preNorm=true by default):
+// x → LayerNorm → MultiHeadAttention → Dropout → residual
+//   → LayerNorm → FFN(ReLU) → Dropout → residual
+</code></pre>
+    </div>
+  </div>
+  <table class="table">
+    <tr><th>Layer</th><th>Normalizes over</th><th>Params</th><th>Best for</th></tr>
+    <tr><td>BatchNorm</td><td>Batch dim</td><td>2×features (γ,β)</td><td>CNNs, MLPs with batch &gt; 16</td></tr>
+    <tr><td>LayerNorm</td><td>Feature dim per sample</td><td>2×features (γ,β)</td><td>Transformers, RNNs, batch=1</td></tr>
+  </table>
+</section>
+
+<!-- ============ CH6 ============ -->
+</section><section class="card">
+  <h2>6 · Pooling: MaxPool & AvgPool</h2>
+  <p class="muted">Files: <code>ml/layer/MaxPool.java</code>, <code>AvgPool.java</code> · Parameter-free spatial downsampling.</p>
+  <div class="grid2">
+    <div>
+      <h3>MaxPool</h3>
+<pre><code>MaxPool pool2 = new MaxPool(2);       // 2×2, stride 2
+MaxPool pool3 = new MaxPool(3, 1);    // 3×3, stride 1
+NeuralNetwork net = new NeuralNetwork()
+  .add(new Conv2D(1,16,3))
+  .add(new ReLU())
+  .add(new MaxPool(2))  // 28×28 → 14×14
+  .add(new Conv2D(16,32,3))
+  .add(new MaxPool(2)); // 14×14 → 7×7 (approx, depends on valid conv)
+</code></pre>
+      <p class="muted">Keeps strongest activation per window — best for feature selection, translation invariance.</p>
+    </div>
+    <div>
+      <h3>AvgPool</h3>
+<pre><code>AvgPool avg = new AvgPool(2);
+NeuralNetwork net2 = new NeuralNetwork()
+  .add(new Conv2D(1,16,3))
+  .add(new AvgPool(2))
+  .add(new Flatten());
+// AvgPool backward distributes gradient uniformly (1/(k*k))
+</code></pre>
+      <p class="muted">Averages window — smoother, often used before global pooling / classification head.</p>
+    </div>
+  </div>
+  <div class="callout">Both infer <code>H = sqrt(cols)</code> (or <code>sqrt(cols/channels)</code>) and compute <code>outH = (H - pool)/stride + 1</code>. Report <code>inputSize/outputSize = -1</code> so shape checks are skipped.</div>
+</section>
+
+<!-- ============ CH7 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="02-layers-core.html"><span class="label">Previous</span><span class="title">Core Layers</span></a>
+      <a href="04-layers-recurrent.html"><span class="label">Next</span><span class="title">Recurrent</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

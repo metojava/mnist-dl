@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NextWordPredictor - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">NextWordPredictor</h1><p class="lead" style="font-size:15px">NLP - Embedding + LSTM next-word prediction (LM)</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/nlp-NextWordPredictor.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/nlp/NextWordPredictor.java</div><h2>NextWordPredictor</h2><p class="muted"><b>NLP</b> - Embedding + LSTM next-word prediction (LM)</p><h3>ML principles</h3><ul><li><b>Language model</b>: Embedding(5k,128) + LSTM(128) + Dense 5k Softmax predicts next word.</li></ul><h3>Full source</h3><pre><code>package projects.nlp;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.layer.LSTMLayer;
+import projects.common.Proj;
+import projects.common.TextCorpus;
+import projects.common.Vocab;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+/**
+ * P10 - Next-word prediction (word-level LSTM on the embedded review corpus vocabulary).
+ *
+ * Run : mvn compile exec:java &quot;-Dexec.mainClass=projects.nlp.NextWordPredictor&quot; &quot;-Dexec.args=15 32&quot;
+ */
+public class NextWordPredictor {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 15), batch = Proj.batch(args, 32);
+        long t0 = System.currentTimeMillis();
+
+        List&lt;String&gt; sentences = new ArrayList&lt;&gt;();
+        sentences.addAll(TextCorpus.POSITIVE);
+        sentences.addAll(TextCorpus.NEGATIVE);
+
+        Vocab vocab = new Vocab(sentences);
+        int V = vocab.size, T = 4;
+
+        // Build (window of T words) -&gt; next word pairs
+        List&lt;List&lt;Integer&gt;&gt; windows = new ArrayList&lt;&gt;();
+        List&lt;Integer&gt; targets = new ArrayList&lt;&gt;();
+        for (String s : sentences) {
+            String[] toks = Vocab.tokens(s);
+            for (int i = 0; i + T &lt; toks.length; i++) {
+                List&lt;Integer&gt; w = new ArrayList&lt;&gt;();
+                boolean ok = true;
+                for (int j = 0; j &lt;= T; j++) {
+                    int ix = vocab.indexOf(toks[i + j]);
+                    if (ix &lt; 0) { ok = false; break; }
+                    if (j &lt; T) w.add(ix);
+                }
+                if (ok) { windows.add(w); targets.add(vocab.indexOf(toks[i + T])); }
+            }
+        }
+
+        Tensor x = new Tensor(targets.size(), T * V);
+        for (int n = 0; n &lt; targets.size(); n++)
+            for (int t = 0; t &lt; T; t++)
+                x.set(n, t * V + windows.get(n).get(t), 1.0);
+        int[] y = targets.stream().mapToInt(Integer::intValue).toArray();
+
+        System.out.printf(&quot;[P10 NextWord] vocab=%d windows=%d%n&quot;, V, x.rows());
+
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new LSTMLayer(V, 128));
+        net.add(new ml.layer.DenseLayer(128, V));
+        net.add(new ml.activation.Softmax());
+        new Trainer(net, new CrossEntropyLoss(), new Adam(0.005)).fit(x, y, epochs, batch);
+
+        Tensor p = net.forward(x.sliceRows(0, Math.min(64, x.rows())), false);
+        int top1 = 0;
+        for (int i = 0; i &lt; p.rows(); i++) if (p.argmaxRow(i) == y[i]) top1++;
+        System.out.printf(&quot;Top-1 next-word accuracy (sample): %.1f%%%n&quot;, 100.0 * top1 / p.rows());
+
+        // Greedy continuation demo
+        String seed = &quot;this movie was&quot;;
+        StringBuilder sb = new StringBuilder(seed);
+        Random rng = new Random(5);
+        for (int step = 0; step &lt; 8; step++) {
+            String[] toks = Vocab.tokens(sb.toString());
+            double[] in = new double[T * V];
+            for (int t = 0; t &lt; T; t++) {
+                String w = toks[Math.max(0, toks.length - T + t)];
+                int ix = vocab.indexOf(w);
+                if (ix &gt;= 0) in[t * V + ix] = 1.0;
+            }
+            Tensor probs = net.forward(Tensor.fromFlat(in, 1, in.length), false);
+            int nxt = CharLstmGenerator.sample(probs.data(), rng, 0.7);
+            sb.append(&#x27; &#x27;).append(vocab.wordAt(nxt));
+        }
+        System.out.println(&quot;Continuation: \&quot;&quot; + sb + &quot;\&quot;&quot;);
+        Proj.footer(&quot;P10 NextWord&quot;, t0);
+    }
+}
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.nlp.NextWordPredictor</span></div></section></main></div>
+</body></html>

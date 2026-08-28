@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BenchEpoch - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 15-examples.html</div>
+<h1 style="font-size:28px">BenchEpoch</h1><p class="lead" style="font-size:15px">Benchmark harness</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="active">Examples</a><a href="../16-projects.html" class="">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>examples/BenchEpoch.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">examples/BenchEpoch.java</div><h2>BenchEpoch</h2><p class="muted"><b>Benchmark harness</b> - Warms up JIT then times 3 epochs of MLP on Fashion-MNIST (784-256-128-64-10) with Adam+Clip+WeightDecay. Use to compare Trainer overhead.</p>
+<h3>ML principles realized</h3><ul><li><b>MLP for Fashion-MNIST</b> (10 classes) with He init + ReLU + Dropout(0.2).</li><li><b>Adam + L2 + Gradient clipping</b>: decoupling of optimizer, regularizer, and gradient norm control.</li><li><b>Benchmark discipline</b>: one warmup epoch to trigger JIT before timing — isolates steady-state throughput.</li></ul>
+<h3>Code walkthrough</h3><pre><code>SeedManager.setSeed(42); // deterministic He init
+Dataset trainData = MNISTLoader.load(...); // 60k x 784
+NeuralNetwork = 784-256 ReLU Dropout0.2 - 256-128 ReLU Dropout0.2 - 128-64 ReLU - 64-10 Softmax
+Trainer = CrossEntropyLoss + Adam(0.001) + GradientClipper(5.0) + WeightDecay(L2=1e-4)
+trainer.fit(...,1,256); // warmup JIT
+fit(...,3,256); // timed
+</code></pre>
+<h3>What to learn</h3><p>How dropout/batch interplay with Trainer loop, why warmup matters for fair timing, and typical Fashion-MNIST MLP depth/width.</p>
+<h3>Full source - <code>src/main/java/examples/BenchEpoch.java</code></h3><pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.util.MNISTLoader;
+
+public class BenchEpoch {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        Dataset trainData = MNISTLoader.load(&quot;data/train-images-idx3-ubyte&quot;, &quot;data/train-labels-idx1-ubyte&quot;);
+
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new ml.layer.DenseLayer(784, 256));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.regularization.Dropout(0.2));
+        network.add(new ml.layer.DenseLayer(256, 128));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.regularization.Dropout(0.2));
+        network.add(new ml.layer.DenseLayer(128, 64));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.layer.DenseLayer(64, 10));
+        network.add(new ml.activation.Softmax());
+
+        Adam optimizer = new Adam(0.001);
+        CrossEntropyLoss loss = new CrossEntropyLoss();
+        Trainer trainer = new Trainer(network, loss, optimizer)
+            .withGradientClipper(new ml.regularization.GradientClipper(5.0))
+            .withWeightDecay(new ml.regularization.WeightDecay(0, 1e-4));
+
+        System.out.println(&quot;Warming up...&quot;);
+        trainer.fit(trainData.images(), trainData.labels(), 1, 256);
+
+        System.out.println(&quot;\nBenchmarking 3 epochs...&quot;);
+        long start = System.currentTimeMillis();
+        trainer.fit(trainData.images(), trainData.labels(), 3, 256);
+        long elapsed = System.currentTimeMillis() - start;
+        System.out.printf(&quot;%nTotal: %dms for 3 epochs =&gt; %.0f ms/epoch%n&quot;, elapsed, elapsed / 3.0);
+    }
+}
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.BenchEpoch</span></div></section></main></div>
+</body></html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part VI - Evaluation - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Evaluation & Persistence</h1>
+      <p class="lead" style="font-size:15px">Evaluator, ConfusionMatrix, Persistence</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="active">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="active">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>14 · Evaluation, Metrics & Persistence</h2>
+  <div class="grid2">
+    <div>
+<pre><code>Evaluator eval = new Evaluator(new String[]{"cat","dog","bird"});
+Evaluator auto = new Evaluator(); // infers num classes
+
+EvaluationResult res = eval.evaluate(net, testImages, testLabels);
+System.out.println(res); // accuracy, correct/total
+System.out.println(res.accuracy()); // 0.0–1.0
+ConfusionMatrix cm = res.confusionMatrix();
+cm.print(); // ASCII table
+cm.printClassMetrics(classNames); // precision/recall/F1 per class
+int correct = cm.correct();
+int[][] matrix = cm.toArray();
+
+// Fine-grained predictions
+PredictionResult pr = eval.predict(net, testImages, testLabels);
+for(Prediction p: pr.getPredictions()){
+  int pred = p.predictedLabel();
+  int truth= p.actualLabel();
+  double conf= p.confidence();
+}
+Prediction single = pr.get(0);
+</code></pre>
+    </div>
+    <div>
+<pre><code>// Persistence — binary is compact & fast, JSON is diffable
+net.saveModel("model.bin");
+NeuralNetwork net2 = NeuralNetwork.loadModel("model.bin");
+net.saveJson("model.json");
+NeuralNetwork net3 = NeuralNetwork.loadJson("model.json");
+
+// Optimizer state (resume training exactly)
+ModelSerializer.saveOptimizer(new Adam(0.001), "opt.bin");
+Optimizer opt2 = ModelSerializer.loadOptimizer("opt.bin");
+
+// Training chart (JFreeChart)
+new TrainingChart().addEpoch(1,0.8).addEpoch(2,0.5).save("chart.png");
+trainer.saveTrainingChart("training.png");
+
+// MNIST visualization
+new MNISTVisualizer(classNames)
+  .visualize(testImages.sliceRows(0,20), predicted, actual, confidences, 20, "preds.png");
+</code></pre>
+      <div class="callout">Parallel evaluation: <code>Evaluator</code> shards batches across <code>ThreadPoolManager.compute()</code> and merges partial <code>ConfusionMatrix</code> instances for large test sets.</div>
+    </div>
+  </div>
+<div class="callout success"><b>New:</b> <b>Safetensors</b> (<code>.safetensors</code>) and <b>ONNX</b> (<code>.onnx</code>) now supported — see <a href="22-persistence.html">22 · Save/Load</a> for 4-format table.</div></section>
+
+<!-- ============ CH15 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="10-training.html"><span class="label">Previous</span><span class="title">Training</span></a>
+      <a href="12-applications.html"><span class="label">Next</span><span class="title">Applications</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HousePriceRegression - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">HousePriceRegression</h1><p class="lead" style="font-size:15px">Tabular - Regression 5 features to price, standardization, manual SGD </p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/tabular-HousePriceRegression.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/tabular/HousePriceRegression.java</div><h2>HousePriceRegression</h2><p class="muted"><b>Tabular</b> - Regression 5 features to price, standardization, manual SGD loop, RMSE in EUR</p><h3>ML principles</h3><ul><li><b>Regression</b>: 5 housing features -> price, standardization of X and y, manual loop with MSE grad 2*(pred-target)/batch, net 5-64 ReLU -64-32 ReLU -32-1.</li></ul><h3>Full source</h3><pre><code>package projects.tabular;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.optimizer.Adam;
+import projects.common.Proj;
+
+import java.util.Random;
+
+/**
+ * P14 - House price regression (synthetic housing market).
+ * Features: size(m2), rooms, age, garage(0/1), distance-to-center(km). Target: price (EUR).
+ *
+ * Run : mvn compile exec:java &quot;-Dexec.mainClass=projects.tabular.HousePriceRegression&quot; &quot;-Dexec.args=150 32&quot;
+ */
+public class HousePriceRegression {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 150), batch = Proj.batch(args, 32);
+        long t0 = System.currentTimeMillis();
+
+        int n = 1200;
+        Random rng = new Random(42);
+        double[][] rawX = new double[n][5];
+        double[] rawY = new double[n];
+        for (int i = 0; i &lt; n; i++) {
+            double size = 60 + rng.nextDouble() * 190;
+            double rooms = 1 + (int) (rng.nextDouble() * 6);
+            double age = rng.nextDouble() * 90;
+            double garage = rng.nextDouble() &lt; 0.45 ? 1 : 0;
+            double dist = 0.5 + rng.nextDouble() * 24;
+            rawX[i] = new double[]{size, rooms, age, garage, dist};
+            rawY[i] = 42_000 * size / 100 + 18_000 * rooms - 900 * age
+                + 25_000 * garage - 3_500 * dist + 12_000 * rng.nextGaussian();
+        }
+
+        Stats xs = stats(rawX, 5);
+        Stats ys = stat1(rawY);
+
+        Tensor x = standardize(rawX, xs);
+        double[] y = new double[n];
+        for (int i = 0; i &lt; n; i++) y[i] = (rawY[i] - ys.mean()[0]) * ys.inv()[0];
+
+        int split = (int) (n * 0.8);
+        Tensor trainX = x.sliceRows(0, split), testX = x.sliceRows(split, n);
+        double[] trainY = java.util.Arrays.copyOf(y, split);
+
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new ml.layer.DenseLayer(5, 64));
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(64, 32));
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(32, 1));
+        System.out.printf(&quot;[P14 HousePrice] samples=%d%n&quot;, n);
+
+        for (int ep = 1; ep &lt;= epochs; ep++) {
+            int from = 0;
+            double loss = 0;
+            while (from &lt; split) {
+                int to = Math.min(from + batch, split);
+                Tensor xb = trainX.sliceRows(from, to);
+                Tensor pred = net.forward(xb, true);
+                Tensor target = Tensor.fromFlat(java.util.Arrays.copyOfRange(trainY, from, to), to - from, 1);
+                loss += mse(pred, target);
+                Tensor grad = pred.subtract(target).multiply(2.0 / (to - from));
+                net.backward(grad);
+                net.update(0.01);
+                from = to;
+            }
+            if (ep % 30 == 0 || ep == 1) System.out.printf(&quot;epoch %d: MSE=%.5f%n&quot;, ep, loss / Math.ceil((double) split / batch));
+        }
+
+        // Test RMSE in EUR
+        Tensor pred = net.forward(testX, false);
+        double se = 0;
+        for (int i = 0; i &lt; testX.rows(); i++) {
+            double p = pred.data()[i] * ys.inv()[0] + ys.mean()[0];
+            double d = p - rawY[split + i];
+            se += d * d;
+        }
+        double rmse = Math.sqrt(se / testX.rows());
+        System.out.printf(&quot;Test RMSE: %.0f EUR (%.1f%% of mean %.0f EUR)%n&quot;, rmse, 100 * rmse / ys.mean()[0], ys.mean()[0]);
+
+        double[] demo = {110, 4, 15, 1, 6};
+        double[] std = new double[5];
+        for (int j = 0; j &lt; 5; j++) std[j] = (demo[j] - xs.mean[j]) * xs.inv[j];
+        double est = net.forward(Tensor.fromFlat(std, 1, 5), false).data()[0] * ys.inv()[0] + ys.mean()[0];
+        System.out.printf(&quot;Demo house %s -&gt; ~%,.0f EUR%n&quot;, java.util.Arrays.toString(demo), est);
+        Proj.footer(&quot;P14 HousePrice&quot;, t0);
+    }
+
+    record Stats(double[] mean, double[] inv) {}
+
+    static Stats stats(double[][] m, int cols) {
+        double[] mean = new double[cols], inv = new double[cols];
+        for (int j = 0; j &lt; cols; j++) {
+            double s = 0;
+            for (double[] row : m) s += row[j];
+            mean[j] = s / m.length;
+            double v = 0;
+            for (double[] row : m) { double d = row[j] - mean[j]; v += d * d; }
+            inv[j] = 1.0 / Math.sqrt(v / Math.max(1, m.length - 1) + 1e-9);
+        }
+        return new Stats(mean, inv);
+    }
+
+    static Stats stat1(double[] a) {
+        double m = java.util.Arrays.stream(a).average().orElse(0);
+        double v = 0;
+        for (double val : a) v += (val - m) * (val - m);
+        return new Stats(new double[]{m}, new double[]{1.0 / Math.sqrt(v / Math.max(1, a.length - 1) + 1e-9)});
+    }
+
+    static Tensor standardize(double[][] m, Stats s) {
+        Tensor t = new Tensor(m.length, m[0].length);
+        for (int i = 0; i &lt; m.length; i++)
+            for (int j = 0; j &lt; m[0].length; j++)
+                t.set(i, j, (m[i][j] - s.mean[j]) * s.inv[j]);
+        return t;
+    }
+
+    static double mse(Tensor a, Tensor b) {
+        double s = 0;
+        for (int i = 0; i &lt; a.size(); i++) { double d = a.data()[i] - b.data()[i]; s += d * d; }
+        return s / a.size();
+    }
+}
+
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.tabular.HousePriceRegression</span></div></section></main></div>
+</body></html>

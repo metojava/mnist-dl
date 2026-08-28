@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part I - Foundations - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Foundations</h1>
+      <p class="lead" style="font-size:15px">Philosophy, Tensor, Layer contract</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="active">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="active">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <div class="eyebrow">Part I — Foundations</div>
+  <h2>1 · Philosophy & Architecture</h2>
+  <p class="muted">What <code>mnist-dl</code> is, why it exists, and how it is organized.</p>
+  <div class="grid3">
+    <div class="stat"><b>Pure Java</b><span class="muted">No Python, no JNI, no native libs. Java 17, Maven, JFreeChart for plotting.</span></div>
+    <div class="stat"><b>Parallel by default</b><span class="muted">Tensor ops, matmul, reductions & DataLoader use <code>ExecutorService</code> + <code>CompletableFuture</code>.</span></div>
+    <div class="stat"><b>Batteries included</b><span class="muted">15 layers, 14 activations, 9 losses, 5 optimizers, 6 app domains with runnable <code>projects.*</code>.</span></div>
+  </div>
+  <h3>Mental model</h3>
+  <p>The library follows the classic deep learning stack: <b>Tensor</b> → <b>Layer</b> → <b>NeuralNetwork</b> → <b>Loss + Optimizer + Trainer</b> → <b>Evaluator</b>. Everything is composed via the <code>Layer</code> interface. Data flows as <code>Tensor(rows=batch, cols=features)</code> with row-major double arrays.</p>
+  <div class="figure">Tensor (batch × features) → [Dense → Activation → Dropout → ... → Softmax] → Loss → Optimizer.step() ↻ Trainer.fit()</div>
+  <h3>Package map</h3>
+  <table class="table">
+    <tr><th>Package</th><th>Key classes</th><th>Role</th></tr>
+    <tr><td><code>ml.core</code></td><td><code>Tensor</code>, <code>Initializers</code>, <code>ThreadPoolManager</code>, <code>SeedManager</code></td><td>Core data &amp; infra</td></tr>
+    <tr><td><code>ml.layer</code></td><td><code>Layer</code>, <code>DenseLayer</code>, <code>Conv2D</code>, <code>BatchNorm</code>, <code>LayerNorm</code>, <code>Embedding</code>, <code>Flatten</code>, <code>MaxPool</code>, <code>AvgPool</code>, <code>RNNLayer</code>, <code>LSTMLayer</code>, <code>GRULayer</code>, <code>SelfAttention</code>, <code>MultiHeadAttention</code>, <code>TransformerBlock</code></td><td>Layers</td></tr>
+    <tr><td><code>ml.activation</code></td><td>ReLU … LogSigmoid (14)</td><td>Non-linearities (extend <code>ActivationLayer</code>)</td></tr>
+    <tr><td><code>ml.loss</code></td><td>CrossEntropy … CTC (9)</td><td>Loss = forward scalar + backward gradient</td></tr>
+    <tr><td><code>ml.optimizer</code></td><td>SGD, Adam, AdamW, RMSProp, AdaGrad</td><td>Parameter update rules</td></tr>
+    <tr><td><code>ml.regularization</code></td><td>Dropout, WeightDecay, GradientClipper</td><td>Regularization</td></tr>
+    <tr><td><code>ml.augmentation</code></td><td>RandomFlip, RandomCrop, RandomRotation, RandomZoom</td><td>Data augmentation (also <code>Layer</code>)</td></tr>
+    <tr><td><code>ml.training</code></td><td>NeuralNetwork, Trainer, EarlyStoppingTrainer, DataLoader, Dataset, LRScheduler, Callback, TrainingHistory, ModelSummary</td><td>Training loop</td></tr>
+    <tr><td><code>ml.evaluation</code></td><td>Evaluator, ConfusionMatrix, EvaluationResult, Prediction</td><td>Metrics</td></tr>
+    <tr><td><code>ml.network</code></td><td>ModelSerializer, Functional</td><td>Save/load (binary &amp; JSON)</td></tr>
+    <tr><td><code>projects.*</code></td><td>vision, nlp, tabular, timeseries, anomaly, recommend</td><td>20+ runnable demos</td></tr>
+  </table>
+  <div class="callout">Design choice: <b>everything is a <code>Layer</code></b> — including activations, dropout, and augmentations — so <code>NeuralNetwork.add(layer)</code> stays uniform and order defines computation.</div>
+</section>
+
+<!-- ============ CH2 ============ -->
+</section><section class="card">
+  <h2>2 · Tensor — The Foundation</h2>
+  <p class="muted">File: <code>ml/core/Tensor.java</code> · Thread-safe, parallel, row-major <code>double[]</code> of shape <code>[rows, cols]</code>.</p>
+  <h3>Why a custom Tensor?</h3>
+  <p>Java has no native ND-array. <code>Tensor</code> gives the whole library a single, cache-friendly, parallelized primitive without pulling in ND4J or PyTorch JNI.</p>
+  <h3>Construction</h3>
+<pre><code>Tensor a = new Tensor(32, 784);                 // zeros
+Tensor b = Tensor.ones(4, 4);
+Tensor c = Tensor.filled(2, 3, 0.5);
+Tensor r = Tensor.random(8, 128);               // Uniform [0,1)
+Tensor n = Tensor.randomNormal(8, 128);         // N(0,1)
+Tensor x = Tensor.xavier(256, 128);             // Xavier/Glorot (scaled normal)
+Tensor h = Tensor.he(256, 128);                 // He (good for ReLU)
+Tensor t = new Tensor(new double[][]{{1,2},{3,4}});
+Tensor f = Tensor.fromFlat(flatArray, 10, 784); // reshape
+
+int[] shape = t.shape(); // [rows, cols]
+double v = t.get(0, 3);
+t.set(0, 3, 0.42);
+double[] row = t.row(1);
+Tensor slice = t.sliceRows(0, 64); // view copy of first 64 rows
+</code></pre>
+  <h3>Parallel execution model</h3>
+  <p>Thresholds: element-wise <code>PARALLEL_THRESHOLD=50_000</code>, matmul <code>MATMUL_PARALLEL_OPS=2_000_000</code>. Above that, operations shard across <code>ThreadPoolManager.compute()</code> with <code>CompletableFuture</code>.</p>
+<pre><code>// Matmul is sharded by output rows
+Tensor out = Tensor.matmul(a, b); // a[mxk] * b[kxn] = [mxn]
+Tensor tr  = a.transpose();
+Tensor sum = a.add(b);            // element-wise (also subtract/multiply/divide)
+a.addInPlace(b);                  // in-place variant
+Tensor scaled = a.multiply(0.5);
+a.multiplyInPlace(0.5);
+
+double s = a.sum();   // parallel reduction
+double m = a.mean();
+double mx = a.max(); double mn = a.min();
+int best = a.argmaxRow(0);
+int[] preds = a.argmaxAll();
+Tensor rowSums = a.sumRows(); // [rows,1]
+Tensor colSums = a.sumCols(); // [1,cols]
+Tensor y = a.apply(x -> Math.max(0, x)); // parallel map
+a.applyInPlace(Math::tanh);
+Tensor clipped = a.clip(-1, 1);
+Tensor copy = a.copy();
+double[][] arr = a.toArray();
+</code></pre>
+  <div class="callout warn"><b>Shape discipline:</b> The library uses <b>2-D tensors only</b>. Images are flattened (e.g., 28×28 → 784), sequences are flattened as <code>seqLen * features</code> per row. Conv2D reconstructs <code>H = sqrt(cols / channels)</code> internally.</div>
+  <h3>Initializers <span class="tag">ml/core/Initializers.java</span></h3>
+<pre><code>import ml.core.Initializers;
+double[] w1 = Initializers.heWeights(in, out, rng);
+double[] w2 = Initializers.xavierWeights(in, out, rng);
+double[] w3 = Initializers.glorotUniform(in, out, rng);
+double[] w4 = Initializers.orthogonal(in, out, rng);
+Tensor t2 = Initializers.heTensor(rows, cols, rng);
+</code></pre>
+</section>
+
+<!-- ============ CH3 ============ -->
+</section><section class="card">
+  <h2>3 · The Layer Interface</h2>
+  <p class="muted">File: <code>ml/layer/Layer.java</code> — every composable block implements this.</p>
+<pre><code>public interface Layer {
+    Tensor forward(Tensor input, boolean training);
+    Tensor backward(Tensor gradient);
+    void   update(double learningRate);
+    int    inputSize();
+    int    outputSize();
+    int    parameterCount();
+    default Tensor forward(Tensor input){ return forward(input,false); }
+}</code></pre>
+  <ul>
+    <li><code>forward(input, training)</code> — <code>training=true</code> enables Dropout/BatchNorm training behaviour.</li>
+    <li><code>backward(gradient)</code> — returns <code>dL/dInput</code>; stores <code>dL/dW</code> internally for <code>update</code>.</li>
+    <li><code>update(lr)</code> — SGD step (optimizers call this or handle Dense specially).</li>
+    <li><code>inputSize/outputSize</code> — return <code>-1</code> for shape-agnostic layers (activations, pooling).</li>
+  </ul>
+  <p>Base for activations: <code>ActivationLayer</code> caches <code>lastInput/lastOutput</code> and delegates to <code>computeForward</code>.</p>
+<pre><code>public abstract class ActivationLayer implements Layer {
+    protected Tensor lastInput, lastOutput;
+    public Tensor forward(Tensor input, boolean t){
+        this.lastInput=input; this.lastOutput=computeForward(input); return lastOutput;
+    }
+    protected abstract Tensor computeForward(Tensor input);
+    public int inputSize(){return -1;} public int outputSize(){return -1;}
+    public int parameterCount(){return 0;} public void update(double lr){}
+}</code></pre>
+</section>
+
+<!-- ============ CH4 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="index.html"><span class="label">Previous</span><span class="title">Home</span></a>
+      <a href="02-layers-core.html"><span class="label">Next</span><span class="title">Core Layers</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

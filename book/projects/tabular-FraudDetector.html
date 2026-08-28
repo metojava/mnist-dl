@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FraudDetector - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">FraudDetector</h1><p class="lead" style="font-size:15px">Tabular - Imbalanced fraud (2% fraud) - FocalLoss vs CE, threshold swe</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/tabular-FraudDetector.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/tabular/FraudDetector.java</div><h2>FraudDetector</h2><p class="muted"><b>Tabular</b> - Imbalanced fraud (2% fraud) - FocalLoss vs CE, threshold sweep for F1</p><h3>ML principles</h3><ul><li><b>Highly imbalanced (2% fraud)</b>: compare CrossEntropy vs FocalLoss, sweep threshold 0.05..0.95 to maximize F1, report TP/FP/FN.</li></ul><h3>Full source</h3><pre><code>package projects.tabular;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.loss.CrossEntropyLoss;
+import ml.loss.FocalLoss;
+import ml.optimizer.Adam;
+import projects.common.Proj;
+
+import java.util.Random;
+
+/**
+ * P15 - Credit card fraud detection on a heavily imbalanced synthetic dataset
+ * (2% fraud). Compares CrossEntropy vs FocalLoss to show how focusing helps recall.
+ *
+ * Run : mvn compile exec:java &quot;-Dexec.mainClass=projects.tabular.FraudDetector&quot; &quot;-Dexec.args=25 64&quot;
+ */
+public class FraudDetector {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 25), batch = Proj.batch(args, 64);
+        long t0 = System.currentTimeMillis();
+
+        int n = 6000;
+        Tensor x = new Tensor(n, 6);
+        int[] y = new int[n];
+        Random rng = new Random(42);
+        for (int i = 0; i &lt; n; i++) {
+            boolean fraud = rng.nextDouble() &lt; 0.02;
+            y[i] = fraud ? 1 : 0;
+            // 35% of frauds camouflage as normal activity -&gt; hard examples
+            boolean stealth = fraud;
+
+            double amount = fraud &amp;&amp; !stealth ? 80 + Math.abs(rng.nextGaussian()) * 420
+                                              : 5 + Math.abs(rng.nextGaussian()) * (stealth ? 120 : 55);
+            double hour = fraud &amp;&amp; !stealth ? (rng.nextDouble() &lt; 0.7 ? rng.nextDouble() * 6 : rng.nextDouble() * 24)
+                                            : 8 + rng.nextDouble() * 14;
+            double distFromHome = fraud &amp;&amp; !stealth ? rng.nextDouble() * 900 : rng.nextDouble() * 60;
+            double txLast1h = fraud &amp;&amp; !stealth ? 3 + (int) (rng.nextDouble() * 6) : (int) (rng.nextDouble() * 3);
+            double foreign = fraud &amp;&amp; !stealth &amp;&amp; rng.nextDouble() &lt; 0.4 ? 1 : 0;
+            double nightWeekend = !fraud &amp;&amp; (hour &lt; 6 || hour &gt; 22) &amp;&amp; rng.nextDouble() &lt; 0.6 ? 1 : 0;
+
+            x.set(i, 0, amount); x.set(i, 1, hour / 24.0); x.set(i, 2, distFromHome);
+            x.set(i, 3, txLast1h); x.set(i, 4, foreign); x.set(i, 5, nightWeekend);
+        }
+        Proj.standardize(x);
+
+        int split = (int) (n * 0.75);
+        Tensor trainX = x.sliceRows(0, split), testX = x.sliceRows(split, n);
+        int[] trainY = java.util.Arrays.copyOf(y, split);
+        int[] testY = java.util.Arrays.copyOfRange(y, split, n);
+        long fraudTest = java.util.Arrays.stream(testY).filter(v -&gt; v == 1).count();
+        System.out.printf(&quot;[P15 Fraud] train=%d test=%d fraud-in-test=%d%n&quot;, trainX.rows(), testX.rows(), fraudTest);
+
+        for (String variant : new String[]{&quot;CrossEntropy&quot;, &quot;FocalLoss&quot;}) {
+            SeedManager.setSeed(42);
+            NeuralNetwork net = buildNet();
+            var lossFn = variant.equals(&quot;FocalLoss&quot;) ? new FocalLoss(0.25, 2.0) : new CrossEntropyLoss();
+            new Trainer(net, lossFn, new Adam(0.003)).fit(trainX, trainY, epochs * 2, batch);
+
+            Tensor out = net.forward(testX, false);
+            // Sweep decision threshold; report the best-F1 operating point (fair under imbalance)
+            double bestF1 = 0, bestThr = 0.5, bestP = 0, bestR = 0;
+            int bTp = 0, bFp = 0, bFn = 0;
+            for (double thr = 0.05; thr &lt;= 0.951; thr += 0.05) {
+                int tp = 0, fp = 0, fn = 0;
+                for (int i = 0; i &lt; out.rows(); i++) {
+                    boolean flag = out.get(i, 1) &gt;= thr;
+                    if (flag &amp;&amp; testY[i] == 1) tp++;
+                    else if (flag) fp++;
+                    else if (testY[i] == 1) fn++;
+                }
+                double p = tp + fp &gt; 0 ? (double) tp / (tp + fp) : 0;
+                double r = (double) tp / Math.max(1, tp + fn);
+                double f1 = p + r &gt; 0 ? 2 * p * r / (p + r) : 0;
+                if (f1 &gt; bestF1) { bestF1 = f1; bestThr = thr; bestP = p; bestR = r; bTp = tp; bFp = fp; bFn = fn; }
+            }
+            System.out.printf(&quot;%-13s best F1=%.2f @thr=%.2f | precision=%.2f recall=%.2f (TP=%d FP=%d FN=%d)%n&quot;,
+                variant, bestF1, bestThr, bestP, bestR, bTp, bFp, bFn);
+        }
+        Proj.footer(&quot;P15 Fraud&quot;, t0);
+    }
+
+    private static NeuralNetwork buildNet() {
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new ml.layer.DenseLayer(6, 32));
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(32, 16));
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(16, 2));
+        net.add(new ml.activation.Softmax());
+        return net;
+    }
+}
+
+
+
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.tabular.FraudDetector</span></div></section></main></div>
+</body></html>

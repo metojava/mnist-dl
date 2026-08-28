@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MnistEnsemble - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">MnistEnsemble</h1><p class="lead" style="font-size:15px">Vision - Bagging 3 bootstrapped nets + majority vote ensemble</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/vision-MnistEnsemble.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/vision/MnistEnsemble.java</div><h2>MnistEnsemble</h2><p class="muted"><b>Vision</b> - Bagging 3 bootstrapped nets + majority vote ensemble</p><h3>ML principles</h3><ul><li><b>Bagging ensemble</b>: 3 bootstrap samples (sample with replacement) train 3 nets 784-256-64-10; majority vote beats each alone (bias-variance).</li></ul><h3>Full source</h3><pre><code>package projects.vision;
+
+import ml.core.Tensor;
+import projects.common.Proj;
+import ml.core.SeedManager;
+import projects.common.Proj;
+import ml.network.NeuralNetwork;
+import projects.common.Proj;
+import ml.training.*;
+import projects.common.Proj;
+import ml.optimizer.Adam;
+import projects.common.Proj;
+import ml.loss.CrossEntropyLoss;
+import projects.common.Proj;
+import ml.regularization.Dropout;
+import projects.common.Proj;
+
+import java.util.Random;
+import projects.common.Proj;
+
+/**
+ * P05 - Ensemble (bagging) of three MNIST networks with majority voting.
+ * Demonstrates that averaging diverse weak learners beats each individual model.
+ *
+ * Run : mvn compile exec:java &quot;-Dexec.mainClass=projects.vision.MnistEnsemble&quot; &quot;-Dexec.args=6 256&quot;
+ */
+public class MnistEnsemble {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 6), batch = Proj.batch(args, 256);
+        long t0 = System.currentTimeMillis();
+
+        Dataset train = ml.util.MNISTLoader.load(
+            &quot;data/mnist/train-images.idx3-ubyte&quot;, &quot;data/mnist/train-labels.idx1-ubyte&quot;);
+        Dataset test = ml.util.MNISTLoader.load(
+            &quot;data/mnist/t10k-images.idx3-ubyte&quot;, &quot;data/mnist/t10k-labels.idx1-ubyte&quot;);
+
+        // Bootstrap subsets for diversity
+        Random rng = new Random(42);
+        int n = train.size();
+        Tensor[] bootX = new Tensor[3];
+        int[][] bootY = new int[3][];
+        for (int m = 0; m &lt; 3; m++) {
+            double[] d = new double[n * 784];
+            int[] y = new int[n];
+            for (int i = 0; i &lt; n; i++) {
+                int j = rng.nextInt(n);
+                System.arraycopy(train.images().data(), j * 784, d, i * 784, 784);
+                y[i] = train.labels()[j];
+            }
+            bootX[m] = Tensor.fromFlat(d, n, 784);
+            bootY[m] = y;
+        }
+
+        NeuralNetwork[] nets = new NeuralNetwork[3];
+        double[] accs = new double[3];
+        for (int m = 0; m &lt; 3; m++) {
+            nets[m] = buildNet(m);
+            new Trainer(nets[m], new CrossEntropyLoss(), new Adam(0.001))
+                .fit(bootX[m], bootY[m], epochs, batch);
+            accs[m] = accuracy(nets[m], test.images(), test.labels());
+            System.out.printf(&quot;Model %d accuracy: %.2f%%%n&quot;, m, accs[m] * 100);
+        }
+
+        // Majority vote
+        Tensor[] outs = new Tensor[3];
+        for (int m = 0; m &lt; 3; m++) outs[m] = nets[m].forward(test.images(), false);
+        int correct = 0;
+        for (int i = 0; i &lt; test.size(); i++) {
+            int[] votes = new int[10];
+            for (int m = 0; m &lt; 3; m++) votes[outs[m].argmaxRow(i)]++;
+            int best = 0;
+            for (int k = 1; k &lt; 10; k++) if (votes[k] &gt; votes[best]) best = k;
+            if (best == test.labels()[i]) correct++;
+        }
+        double ens = 100.0 * correct / test.size();
+        System.out.printf(&quot;%nEnsemble accuracy: %.2f%%  (best single: %.2f%%)%n&quot;, ens, java.util.Arrays.stream(accs).max().orElse(0) * 100);
+        Proj.footer(&quot;P05 MnistEnsemble&quot;, t0);
+    }
+
+    private static NeuralNetwork buildNet(int seed) {
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new ml.layer.DenseLayer(784, 256));
+        net.add(new ml.activation.ReLU());
+        net.add(new Dropout(0.25));
+        net.add(new ml.layer.DenseLayer(256, 64));
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(64, 10));
+        net.add(new ml.activation.Softmax());
+        return net;
+    }
+
+    static double accuracy(NeuralNetwork net, Tensor x, int[] y) {
+        Tensor out = net.forward(x, false);
+        int c = 0;
+        for (int i = 0; i &lt; out.rows(); i++) if (out.argmaxRow(i) == y[i]) c++;
+        return (double) c / x.rows();
+    }
+}
+
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.vision.MnistEnsemble</span></div></section></main></div>
+</body></html>

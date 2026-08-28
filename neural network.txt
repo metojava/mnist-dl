@@ -1,0 +1,1381 @@
+Absolutely. Since this is now a Fashion-MNIST deep-learning library written from scratch in Java, a good tutorial should explain not only how to call the library, but also what each neural-network component is doing mathematically and how your Java classes correspond to the mathematics.
+
+Below is a chapter you can put directly into your HTML documentation.
+
+Building Neural Networks with the Java DL Library
+1. What is a neural network?
+
+A neural network is a collection of mathematical functions called layers that transform an input into a prediction.
+
+For our Fashion-MNIST problem, the input is a 28 × 28 grayscale image:
+
+28 × 28 = 784 pixels
+
+
+Each pixel is represented by a number between 0 and 255. Our loader normalizes these values to approximately:
+
+0.0 → black
+1.0 → white
+
+
+The network receives those 784 values and produces 10 output values, one for each Fashion-MNIST category.
+
+Fashion-MNIST contains ten classes:
+
+0  T-shirt/top
+1  Trouser
+2  Pullover
+3  Dress
+4  Coat
+5  Sandal
+6  Shirt
+7  Sneaker
+8  Bag
+9  Ankle boot
+
+
+This is a multi-class classification problem because each image belongs to one of ten possible classes. Fashion-MNIST uses 28×28 grayscale images and ten clothing categories. 
+J
+Justin Charney
++1
+
+2. Our first neural network
+
+The network currently used by the Java library is:
+
+Input
+  │
+  │ 784
+  ▼
+┌─────────────────┐
+│ Dense 784 → 128 │
+└─────────────────┘
+  │
+  ▼
+┌─────────────┐
+│    ReLU     │
+└─────────────┘
+  │
+  │ 128
+  ▼
+┌─────────────────┐
+│ Dense 128 → 64  │
+└─────────────────┘
+  │
+  ▼
+┌─────────────┐
+│    ReLU     │
+└─────────────┘
+  │
+  │ 64
+  ▼
+┌────────────────┐
+│ Dense 64 → 10  │
+└────────────────┘
+  │
+  ▼
+┌─────────────┐
+│   Softmax   │
+└─────────────┘
+  │
+  ▼
+10 probabilities
+
+
+In Java:
+
+NeuralNetwork network =
+        new NeuralNetwork()
+
+                .add(
+                        new DenseLayer(
+                                784,
+                                128
+                        )
+                )
+
+                .add(
+                        new ReLU()
+                )
+
+                .add(
+                        new DenseLayer(
+                                128,
+                                64
+                        )
+                )
+
+                .add(
+                        new ReLU()
+                )
+
+                .add(
+                        new DenseLayer(
+                                64,
+                                10
+                        )
+                )
+
+                .add(
+                        new Softmax()
+                );
+
+
+This is called a feed-forward neural network or multilayer perceptron (MLP).
+
+The basic architecture of a Fashion-MNIST MLP commonly uses 784 inputs, hidden layers, and 10 output classes. 
+D
+Deep Learning Math
++1
+
+3. What does DenseLayer mean?
+
+A dense layer is also called a fully connected layer.
+
+Every neuron in the layer is connected to every value coming from the previous layer.
+
+For example:
+
+Input                  Hidden layer
+
+x₁ ────────────────► neuron₁
+x₂ ────────────────► neuron₁
+x₃ ────────────────► neuron₁
+...                  ...
+x₇₈₄ ──────────────► neuron₁
+
+
+x₁ ────────────────► neuron₂
+x₂ ────────────────► neuron₂
+...
+
+
+With:
+
+new DenseLayer(784, 128)
+
+
+we have:
+
+784 input values
+       ↓
+128 neurons
+
+
+Every one of the 128 neurons receives all 784 input values.
+
+4. Weights
+
+Each connection has a weight.
+
+Mathematically, the weights are represented by a matrix:
+
+W
+
+
+For:
+
+new DenseLayer(784, 128)
+
+
+the weight matrix has dimensions:
+
+784 × 128
+
+
+That means the layer contains:
+
+784 × 128 = 100,352
+
+
+weights.
+
+The weights determine how strongly each input influences each neuron.
+
+For a single neuron:
+
+y = x₁w₁ + x₂w₂ + x₃w₃ + ... + x₇₈₄w₇₈₄ + b
+
+
+This can be written more compactly as:
+
+y = XW + b
+
+
+This matrix operation is what the optimized Tensor.matmul() implementation performs.
+
+5. Bias
+
+A dense layer also has a bias.
+
+Instead of:
+
+y = XW
+
+
+we use:
+
+y = XW + b
+
+
+The bias allows a neuron to shift its activation independently of the inputs.
+
+In our DenseLayer:
+
+private final Tensor bias;
+
+
+For:
+
+new DenseLayer(784, 128)
+
+
+the bias contains 128 values:
+
+b₁
+b₂
+...
+b₁₂₈
+
+
+Each neuron gets its own bias.
+
+6. Forward propagation
+
+When an image is given to the neural network, information moves from the input toward the output.
+
+This is called forward propagation or the forward pass.
+
+For our network:
+
+Input
+  ↓
+Dense
+  ↓
+ReLU
+  ↓
+Dense
+  ↓
+ReLU
+  ↓
+Dense
+  ↓
+Softmax
+  ↓
+Prediction
+
+
+The first dense layer performs:
+
+Z₁ = XW₁ + b₁
+
+
+Then ReLU:
+
+A₁ = ReLU(Z₁)
+
+
+The second dense layer:
+
+Z₂ = A₁W₂ + b₂
+
+
+Then:
+
+A₂ = ReLU(Z₂)
+
+
+The output layer:
+
+Z₃ = A₂W₃ + b₃
+
+
+Finally:
+
+P = Softmax(Z₃)
+
+
+This sequence of matrix operations and activations is the forward computation of the network. 
+A
+Ammar Mian
++1
+
+7. Why do we need ReLU?
+
+If we used only dense layers:
+
+Dense
+  ↓
+Dense
+  ↓
+Dense
+
+
+the entire network would effectively behave like a single linear transformation.
+
+That would severely limit what the network could learn.
+
+We therefore introduce non-linearity using an activation function.
+
+Our library implements:
+
+new ReLU()
+
+
+ReLU means Rectified Linear Unit.
+
+Its mathematical definition is:
+
+ReLU(x) = max(0, x)
+
+
+Therefore:
+
+x = -5  → 0
+x = -1  → 0
+x =  0  → 0
+x =  2  → 2
+x =  7  → 7
+
+
+Visually:
+
+       │
+       │          /
+       │         /
+       │        /
+───────┼───────/────────
+       │
+       │
+
+
+ReLU is commonly used between dense layers in simple image-classification networks. 
+D
+Deep Learning Math
+
+8. Why do we need multiple layers?
+
+Consider an image of a sneaker.
+
+The first layer might learn relatively simple patterns:
+
+edges
+lines
+brightness patterns
+small shapes
+
+
+The next layer can combine those patterns:
+
+curves
+shoe-like shapes
+soles
+upper sections
+
+
+The final layers combine these higher-level features to determine:
+
+Sneaker
+
+
+This is the general idea behind hierarchical feature learning.
+
+Our MLP does not explicitly understand "this is a sole" or "this is a shoe." Instead, the weights are adjusted during training so that useful patterns emerge in the internal representations.
+
+9. The output layer
+
+Our final dense layer is:
+
+new DenseLayer(64, 10)
+
+
+Why 10?
+
+Because Fashion-MNIST has ten classes.
+
+Each output neuron corresponds to one class:
+
+output[0] → T-shirt/top
+output[1] → Trouser
+output[2] → Pullover
+output[3] → Dress
+output[4] → Coat
+output[5] → Sandal
+output[6] → Shirt
+output[7] → Sneaker
+output[8] → Bag
+output[9] → Ankle boot
+
+
+The output before Softmax consists of logits.
+
+For example:
+
+[ 1.2, -0.8, 0.4, 2.1, -0.3,
+ -1.2, 0.1, 5.8, 0.7, 1.0 ]
+
+
+These aren't probabilities yet.
+
+10. Softmax
+
+The Softmax layer converts the ten logits into probabilities.
+
+For logits:
+
+z₁, z₂, ..., z₁₀
+
+
+Softmax calculates:
+
+Pᵢ = eᶻⁱ / Σ eᶻʲ
+
+
+The result has two important properties:
+
+0 ≤ Pᵢ ≤ 1
+
+
+and:
+
+P₁ + P₂ + ... + P₁₀ = 1
+
+
+So we might get:
+
+T-shirt/top    0.01
+Trouser        0.00
+Pullover       0.02
+Dress          0.01
+Coat           0.03
+Sandal         0.01
+Shirt          0.02
+Sneaker        0.87
+Bag            0.01
+Ankle boot     0.02
+
+
+The prediction is:
+
+Sneaker
+
+
+because it has the highest probability.
+
+11. Loss function
+
+The network needs a way to measure whether its prediction is good or bad.
+
+That's the job of the loss function.
+
+Our library uses:
+
+CrossEntropyLoss loss =
+        new CrossEntropyLoss();
+
+
+For classification, cross-entropy is a natural choice because it penalizes assigning low probability to the correct class. 
+D
+Deep Learning Math
++1
+
+Suppose the correct class is:
+
+Sneaker
+
+
+and the network predicts:
+
+Sneaker = 0.90
+
+
+The loss is relatively small.
+
+But if:
+
+Sneaker = 0.01
+
+
+the loss is large.
+
+For a single example, the basic categorical cross-entropy is:
+
+L = -log(Pcorrect)
+
+
+So:
+
+Pcorrect = 0.90
+
+L ≈ 0.105
+
+
+while:
+
+Pcorrect = 0.01
+
+L ≈ 4.605
+
+
+The network therefore has a strong incentive to assign high probability to the correct class.
+
+12. Backpropagation
+
+This is where the neural network actually learns.
+
+After the forward pass:
+
+image
+ ↓
+prediction
+ ↓
+loss
+
+
+we calculate how much each parameter contributed to the error.
+
+This is called backpropagation.
+
+The fundamental idea is the chain rule from calculus.
+
+The information flows backward:
+
+Loss
+ ↑
+Softmax
+ ↑
+Dense
+ ↑
+ReLU
+ ↑
+Dense
+ ↑
+ReLU
+ ↑
+Dense
+ ↑
+Input
+
+
+The network calculates gradients such as:
+
+∂L/∂W
+
+
+meaning:
+
+How much would the loss change if this weight changed?
+
+The gradients are then used to update the weights.
+
+The softmax + cross-entropy combination has a particularly useful output gradient:
+
+gradient = prediction - target
+
+
+which greatly simplifies implementation. 
+A
+Ammar Mian
++1
+
+13. Gradient descent
+
+Once gradients are calculated, the weights are updated.
+
+The basic rule is:
+
+Wnew = Wold - learningRate × gradient
+
+
+For example:
+
+weight = 0.50
+gradient = 0.20
+learningRate = 0.01
+
+
+Then:
+
+newWeight =
+    0.50 - (0.01 × 0.20)
+
+newWeight =
+    0.498
+
+
+The optimizer in our library is:
+
+SGD optimizer =
+        new SGD(learningRate);
+
+
+SGD means Stochastic Gradient Descent.
+
+14. Why batches are used
+
+Instead of processing all 60,000 training images simultaneously, we divide them into smaller groups.
+
+For example:
+
+int batchSize = 128;
+
+
+The training process becomes:
+
+60,000 images
+
+       ↓
+
+batch 1   128 images
+batch 2   128 images
+batch 3   128 images
+...
+batch 469 approximately
+
+
+For each batch:
+
+forward
+   ↓
+loss
+   ↓
+backward
+   ↓
+update weights
+
+
+This is called mini-batch training.
+
+It is much more practical than attempting to process the entire dataset in one operation.
+
+15. What is an epoch?
+
+An epoch means that the network has gone through the entire training dataset once.
+
+For Fashion-MNIST:
+
+60,000 training images
+
+
+Therefore:
+
+1 epoch = approximately 60,000 training examples processed
+
+
+If we specify:
+
+int epochs = 10;
+
+
+the network gets ten opportunities to learn from the training dataset.
+
+The library prints timing information:
+
+Epoch 1/10 - loss: 0.4217 - time: 18.42 sec
+Epoch 2/10 - loss: 0.2134 - time: 17.91 sec
+...
+
+16. Putting everything together
+
+The complete learning process is:
+
+                    TRAINING
+                       │
+                       ▼
+                Fashion-MNIST
+                       │
+                       ▼
+                  28 × 28 image
+                       │
+                       ▼
+                  Flatten → 784
+                       │
+                       ▼
+               Dense 784 → 128
+                       │
+                       ▼
+                     ReLU
+                       │
+                       ▼
+                Dense 128 → 64
+                       │
+                       ▼
+                     ReLU
+                       │
+                       ▼
+                 Dense 64 → 10
+                       │
+                       ▼
+                    Softmax
+                       │
+                       ▼
+                 Prediction
+                       │
+                       ▼
+                Cross Entropy
+                       │
+                       ▼
+                    Loss
+                       │
+                       ▼
+                Backpropagation
+                       │
+                       ▼
+                   Gradients
+                       │
+                       ▼
+                      SGD
+                       │
+                       ▼
+                Updated weights
+                       │
+                       └───────────┐
+                                   │
+                                   ▼
+                              Next batch
+
+
+This process repeats for every batch and every epoch.
+
+17. How the Java classes correspond to the theory
+
+The library is deliberately structured so that each important concept has a corresponding Java class.
+
+Deep-learning concept	Java class
+Tensor/matrix	Tensor
+Neural network	NeuralNetwork
+Fully connected layer	DenseLayer
+Non-linearity	ReLU
+Output probability	Softmax
+Loss	CrossEntropyLoss
+Optimization	SGD
+Training loop	Trainer
+Evaluation	Evaluator
+Results	EvaluationResult
+Confusion matrix	ConfusionMatrix
+Dataset loading	MNISTLoader
+Prediction visualization	MNISTVisualizer
+Training visualization	TrainingChart
+
+This separation is important because it makes the library composable. A neural network is not one giant function; it is a sequence of smaller operations.
+
+18. Building a smaller network
+
+You don't have to use:
+
+784 → 128 → 64 → 10
+
+
+You could create:
+
+NeuralNetwork network =
+        new NeuralNetwork()
+
+                .add(
+                        new DenseLayer(
+                                784,
+                                64
+                        )
+                )
+
+                .add(
+                        new ReLU()
+                )
+
+                .add(
+                        new DenseLayer(
+                                64,
+                                10
+                        )
+                )
+
+                .add(
+                        new Softmax()
+                );
+
+
+Architecture:
+
+784
+ ↓
+64
+ ↓
+10
+
+
+This network has fewer parameters and should train faster, but it may have lower classification performance.
+
+19. Building a larger network
+
+You could instead use:
+
+NeuralNetwork network =
+        new NeuralNetwork()
+
+                .add(
+                        new DenseLayer(
+                                784,
+                                256
+                        )
+                )
+
+                .add(
+                        new ReLU()
+                )
+
+                .add(
+                        new DenseLayer(
+                                256,
+                                128
+                        )
+                )
+
+                .add(
+                        new ReLU()
+                )
+
+                .add(
+                        new DenseLayer(
+                                128,
+                                64
+                        )
+                )
+
+                .add(
+                        new ReLU()
+                )
+
+                .add(
+                        new DenseLayer(
+                                64,
+                                10
+                        )
+                )
+
+                .add(
+                        new Softmax()
+                );
+
+
+Now:
+
+784
+ ↓
+256
+ ↓
+128
+ ↓
+64
+ ↓
+10
+
+
+A larger network has more parameters and therefore more computational work.
+
+It can represent more complicated functions, but bigger doesn't automatically mean better. More parameters can also increase training time and the risk of overfitting.
+
+20. How many parameters does a layer have?
+
+For a dense layer:
+
+parameters =
+    inputSize × outputSize
+    + outputSize
+
+
+The second term is for biases.
+
+For:
+
+new DenseLayer(784, 128)
+
+
+we have:
+
+weights:
+
+784 × 128 = 100,352
+
+biases:
+
+128
+
+total:
+
+100,480 parameters
+
+
+For:
+
+new DenseLayer(128, 64)
+
+
+we have:
+
+128 × 64 = 8,192
+
++ 64 biases
+
+= 8,256
+
+
+For:
+
+new DenseLayer(64, 10)
+
+
+we have:
+
+64 × 10 = 640
+
++ 10 biases
+
+= 650
+
+
+Therefore our entire network contains:
+
+100,480
++ 8,256
++ 650
+────────
+109,386 parameters
+
+
+That is a relatively small neural network.
+
+21. Why initialization matters
+
+When the network starts, it doesn't know anything about Fashion-MNIST.
+
+The weights therefore need initial values.
+
+Our updated DenseLayer uses He initialization:
+
+double std =
+        Math.sqrt(
+                2.0 / inputSize
+        );
+
+
+and:
+
+weight =
+        RANDOM.nextGaussian()
+                * std;
+
+
+The purpose is to start the network with weights that have a sensible scale, particularly when using ReLU activations.
+
+Poor initialization can make gradients become too small or too large, making learning difficult.
+
+22. What happens during one training step?
+
+Let's follow one batch.
+
+Suppose:
+
+batch size = 128
+
+
+The tensor has shape:
+
+128 × 784
+
+Step 1 — First dense layer
+128 × 784
+       ×
+784 × 128
+       =
+128 × 128
+
+
+Then add bias.
+
+Step 2 — ReLU
+128 × 128
+
+
+The shape doesn't change.
+
+Step 3 — Second dense layer
+128 × 128
+       ×
+128 × 64
+       =
+128 × 64
+
+Step 4 — ReLU
+
+Still:
+
+128 × 64
+
+Step 5 — Output layer
+128 × 64
+       ×
+64 × 10
+       =
+128 × 10
+
+
+Now every image has ten output scores.
+
+Step 6 — Softmax
+128 × 10
+
+
+becomes 128 probability distributions.
+
+Step 7 — Loss
+
+The predictions are compared against the 128 correct labels.
+
+Step 8 — Backpropagation
+
+Gradients travel backward through:
+
+Softmax
+   ↓
+Dense
+   ↓
+ReLU
+   ↓
+Dense
+   ↓
+ReLU
+   ↓
+Dense
+
+Step 9 — SGD
+
+Weights and biases are updated.
+
+Then the next batch begins.
+
+23. Why Tensor is important
+
+The Tensor class is the numerical foundation of the library.
+
+Our optimized implementation stores the values in a flat:
+
+double[]
+
+
+rather than:
+
+double[][]
+
+
+Conceptually:
+
+Tensor
+ ├── rows
+ ├── cols
+ └── double[] data
+
+
+For example:
+
+Tensor 2 × 3
+
+[ 1  2  3 ]
+[ 4  5  6 ]
+
+
+is stored internally as:
+
+[1, 2, 3, 4, 5, 6]
+
+
+The element:
+
+row = 1
+column = 2
+
+
+is located at:
+
+1 × 3 + 2
+= 5
+
+
+This representation gives matrix operations a contiguous block of memory and avoids the separate row-array objects associated with double[][].
+
+The optimized matrix multiplication:
+
+Tensor.matmul(a, b)
+
+
+is therefore one of the most important performance components of the library.
+
+24. Training versus inference
+
+There are two different modes.
+
+Training
+
+During training, the network needs:
+
+forward
+↓
+loss
+↓
+backward
+↓
+weight update
+
+
+Weights change.
+
+Inference
+
+After training, we only need:
+
+image
+ ↓
+forward
+ ↓
+prediction
+
+
+Weights don't change.
+
+For example:
+
+Tensor probabilities =
+        network.forward(image);
+
+
+Then:
+
+int prediction =
+        probabilities.argmaxRow(0);
+
+
+If:
+
+prediction = 7
+
+
+we can translate it:
+
+String label =
+        FASHION_LABELS[prediction];
+
+
+giving:
+
+Sneaker
+
+25. Evaluating the network
+
+Accuracy is:
+
+correct predictions
+──────────────────── × 100
+total predictions
+
+
+For example:
+
+9,000 correct
+10,000 total
+
+
+gives:
+
+90%
+
+
+But accuracy alone doesn't tell us which classes are causing problems.
+
+That's why this library also implements a confusion matrix.
+
+26. Confusion matrix
+
+A confusion matrix tells us how predictions are distributed across classes.
+
+For Fashion-MNIST:
+
+                  PREDICTED
+             0   1   2   3   4   5   6   7   8   9
+ACTUAL  0
+        1
+        2
+        3
+        4
+        5
+        6
+        7
+        8
+        9
+
+
+For example, if many:
+
+Shirt
+
+
+images are predicted as:
+
+T-shirt/top
+
+
+the confusion matrix will reveal that.
+
+This is particularly useful with Fashion-MNIST because visually similar clothing classes such as shirts, T-shirts, coats, and pullovers can be harder to distinguish.
+
+27. Why this library is educational
+
+Large frameworks hide most of this process.
+
+You might normally write something conceptually like:
+
+model.fit(...)
+
+
+and the framework handles:
+
+matrix multiplication
+activation functions
+loss
+gradient calculation
+backpropagation
+parameter updates
+batching
+
+
+Our Java library deliberately exposes these concepts.
+
+For example:
+
+network.forward(...)
+
+
+represents forward propagation.
+
+network.backward(...)
+
+
+represents backpropagation.
+
+optimizer
+
+
+represents parameter optimization.
+
+Tensor.matmul(...)
+
+
+represents matrix multiplication.
+
+CrossEntropyLoss
+
+
+represents the training objective.
+
+This makes the project useful for learning what deep-learning frameworks are actually doing internally.
+
+28. The complete mental model
+
+The most important thing to understand is this:
+
+                DATA
+                  │
+                  ▼
+          ┌───────────────┐
+          │    Tensor     │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │ Dense Layer   │
+          │    XW + b     │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │     ReLU      │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │ Dense Layer   │
+          │    XW + b     │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │     ReLU      │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │ Dense Layer   │
+          │    XW + b     │
+          └───────────────┘
+                  │
+                  ▼
+          ┌───────────────┐
+          │    Softmax    │
+          └───────────────┘
+                  │
+                  ▼
+             PREDICTION
+                  │
+                  ▼
+          ┌───────────────┐
+          │ Cross Entropy │
+          └───────────────┘
+                  │
+                  ▼
+                LOSS
+                  │
+                  ▼
+          ┌───────────────┐
+          │ Backpropagation│
+          └───────────────┘
+                  │
+                  ▼
+             GRADIENTS
+                  │
+                  ▼
+          ┌───────────────┐
+          │      SGD      │
+          └───────────────┘
+                  │
+                  ▼
+          UPDATED WEIGHTS
+                  │
+                  └──────────────► repeat
+
+
+That loop is the heart of neural-network training.
+
+29. Where to go next
+
+Once the 784 → 128 → 64 → 10 network works, the natural next improvements to this library are:
+
+Validation dataset — distinguish training performance from generalization.
+Adam optimizer — usually more adaptive than basic SGD.
+Dropout — regularization to reduce overfitting.
+L2 regularization — penalize excessively large weights.
+Learning-rate scheduling — reduce the learning rate during training.
+Batch normalization.
+Convolutional layers (Conv2D) — especially important for image data.
+Max pooling.
+Model saving/loading.
+GPU acceleration eventually.
+
+A particularly important next step for Fashion-MNIST would be implementing Conv2D → ReLU → MaxPool → Dense → Softmax. Convolutional networks are much better suited to exploiting the spatial structure of 28×28 images than a pure dense network; CNN-based Fashion-MNIST examples commonly use convolution, pooling, dropout, flattening, and dense layers. 
+T
+TensorFlow Blog
++1
+
+That would take your project from a basic educational MLP into a much more complete Java deep-learning framework for image classification.
+
+J
+D
+A
+Sources

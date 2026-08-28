@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>21 · ML Patterns - mnist-dl Handbook</title><link rel="stylesheet" href="style.css">
+<style>
+.chart{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:12px;overflow:auto}
+.formula{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:14px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.5;overflow:auto}
+.formula b{color:#4f46e5}
+.svg-wrap{background:#ffffff;border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;justify-content:center;overflow:auto}
+</style>
+</head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 · Java 17 · Book</div>
+<h1 style="font-size:30px">21 · ML Patterns</h1><p class="lead" style="font-size:15px">7 reusable patterns with formulas, diagrams & code skeletons</p></div></div></header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="active">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="active">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">All code 17px · Charts are inline SVG · Offline ready</div></nav>
+<main class="content">
+<section class="card">
+<div class="eyebrow">Patterns · Reuse</div>
+<h2>21 · ML Patterns — Formulas, When-to-Use & Charts</h2>
+<p class="muted">Seven patterns that cover 90% of what you will build with mnist-dl. Each has formula, diagram, code skeleton, and which library pieces to pick.</p>
+
+<h3>1 · MLP — Universal approximator</h3>
+<div class="formula">
+y = Softmax( W<sub>3</sub>·ReLU( W<sub>2</sub>·ReLU(W<sub>1</sub>x + b<sub>1</sub>) + b<sub>2</sub>) + b<sub>3</sub> )<br>
+<span class="muted">He init + ReLU avoids vanishing; Dropout 0.2 prevents co-adaptation.</span>
+</div>
+<div class="svg-wrap">
+<svg width="740" height="110" viewBox="0 0 740 110"><rect width="740" height="110" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<g fill="#4f46e5"><circle cx="80" cy="30" r="10"/><circle cx="80" cy="55" r="10"/><circle cx="80" cy="80" r="10"/><text x="68" y="108" font-size="10" fill="#64748b">input</text></g>
+<g fill="#7c3aed"><circle cx="220" cy="22" r="10"/><circle cx="220" cy="48" r="10"/><circle cx="220" cy="74" r="10"/><circle cx="220" cy="100" r="10"/><text x="204" y="108" font-size="10" fill="#64748b">hidden</text></g>
+<g fill="#059669"><circle cx="380" cy="42" r="10"/><circle cx="380" cy="68" r="10"/><text x="368" y="108" font-size="10" fill="#64748b">hidden2</text></g>
+<g fill="#dc2626"><circle cx="560" cy="55" r="12"/><text x="544" y="108" font-size="10" fill="#64748b">softmax</text></g>
+<g stroke="#94a3b8" stroke-width="1" opacity="0.5">
+<line x1="90" y1="30" x2="210" y2="22"/><line x1="90" y1="30" x2="210" y2="48"/><line x1="90" y1="55" x2="210" y2="74"/><line x1="230" y1="48" x2="370" y2="42"/><line x1="390" y1="42" x2="548" y2="55"/>
+</g>
+</svg>
+</div>
+<pre><code>new NeuralNetwork()
+ .add(new DenseLayer(784,256)).add(new ReLU()).add(new Dropout(0.2))
+ .add(new DenseLayer(256,128)).add(new ReLU())
+ .add(new DenseLayer(128,10)).add(new Softmax()); // + CrossEntropy + Adam</code></pre>
+<p class="muted">Use: Tabular, Fashion-MNIST baseline, MLP head after CNN/RNN.</p>
+
+<h3>2 · CNN — Locality + translation invariance</h3>
+<div class="formula">
+( f ∗ k )(i,j) = Σ<sub>m,n</sub> f(i+m−n)·k(m,n) &nbsp; + bias , then ReLU → MaxPool<br>
+<span class="muted">Library infers H=√(cols/channels); kernel 3→ valid conv shrinks H by 2.</span>
+</div>
+<div class="svg-wrap">
+<svg width="740" height="110" viewBox="0 0 740 110"><rect width="740" height="110" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<rect x="30" y="30" width="70" height="70" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><text x="46" y="72" font-size="11">28×28</text>
+<text x="112" y="66" font-size="16">→</text>
+<rect x="140" y="36" width="60" height="60" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="150" y="68" font-size="10">3×3×16</text>
+<text x="212" y="66" font-size="16">→</text>
+<rect x="240" y="30" width="70" height="70" rx="6" fill="#fce7f3" stroke="#fbcfe8"/><text x="254" y="72" font-size="11">14×14×16</text>
+<text x="322" y="66">→</text><rect x="350" y="36" width="60" height="60" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="360" y="68" font-size="10">3×3×32</text>
+<text x="422" y="66">→</text><rect x="450" y="30" width="70" height="70" rx="6" fill="#dcfce7" stroke="#bbf7d0"/><text x="466" y="72" font-size="11">7×7×32</text>
+</svg>
+</div>
+<pre><code>new NeuralNetwork().add(new Conv2D(1,16,3)).add(new ReLU()).add(new MaxPool(2))
+ .add(new Conv2D(16,32,3)).add(new ReLU()).add(new MaxPool(2))
+ .add(new Flatten()).add(new DenseLayer(1568,10)).add(new Softmax());</code></pre>
+
+<h3>3 · Autoencoder — Unsupervised compression</h3>
+<div class="formula">
+ℒ = MSE( x, Dec( Enc( Noisy(x) ) ) ) &nbsp; , bottleneck dim &lt;&lt; input<br>
+<span class="muted">Denoising: add 15% salt-pepper → learn to clean.</span>
+</div>
+<pre><code>new NeuralNetwork()
+ .add(new DenseLayer(784,256)).add(new ReLU())
+ .add(new DenseLayer(256,64)).add(new ReLU()) // bottleneck
+ .add(new DenseLayer(64,256)).add(new ReLU())
+ .add(new DenseLayer(256,784)).add(new Sigmoid()); // + MSELoss</code></pre>
+
+<h3>4 · RNN/LSTM — Sequences</h3>
+<div class="formula">
+h<sub>t</sub> = tanh( W<sub>x</sub>x<sub>t</sub> + W<sub>h</sub>h<sub>t-1</sub> + b )<br>
+LSTM: i,f,o,g gates → c<sub>t</sub>=f⊙c<sub>t-1</sub>+i⊙g , h<sub>t</sub>=o⊙tanh(c<sub>t</sub>)
+</div>
+<div class="svg-wrap">
+<svg width="740" height="80" viewBox="0 0 740 80"><rect width="740" height="80" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<g font-size="11" fill="#334155">
+<rect x="20" y="26" width="100" height="28" rx="14" fill="#eef2ff" stroke="#4f46e5"/><text x="46" y="44">x<sub>t</sub></text>
+<text x="132" y="44">→</text><rect x="150" y="20" width="90" height="40" rx="8" fill="#fff" stroke="#7c3aed"/><text x="170" y="44">LSTM</text>
+<text x="250" y="44">→ h<sub>t</sub> →</text><rect x="310" y="20" width="90" height="40" rx="8" fill="#fff" stroke="#7c3aed"/><text x="330" y="44">LSTM</text>
+<text x="410" y="44">→ h<sub>t+1</sub></text>
+</g>
+</svg>
+</div>
+
+<h3>5 · Attention/Transformer — Long-range</h3>
+<div class="formula">
+Attention = softmax(QK<sup>T</sup>/√d)·V &nbsp; MultiHead = Concat(heads)·W<sub>O</sub><br>
+Block = x + MHA(LN(x)) → y = x₁ + FFN(LN(x₁))
+</div>
+<p class="muted">See <a href="19-transformers.html">19 · Transformers</a> for full diagrams.</p>
+
+<h3>6 · Imbalanced — Focal & threshold</h3>
+<div class="formula">
+Focal: −α(1−p<sub>t</sub>)<sup>γ</sup> log(p<sub>t</sub>) &nbsp; γ=2 focuses on hard positives<br>
+<span class="muted">Sweep threshold 0.05→0.95 to maximize F1; report TP/FP/FN.</span>
+</div>
+<pre><code>new Trainer(net, new FocalLoss(0.25,2.0), new Adam(0.003)).fit(...);
+// sweep: for(thr) compute p=TP/(TP+FP), r=TP/(TP+FN), F1=2pr/(p+r)</code></pre>
+
+<h3>7 · Transfer / Ensemble</h3>
+<ul>
+<li><b>Ensemble (P05)</b>: bootstrap 3×, train 3 nets, majority vote — reduces variance.</li>
+<li><b>Conceptual transfer</b>: train AE bottleneck 64, then reuse encoder as feature extractor for classifier.</li>
+</ul>
+
+<div class="svg-wrap">
+<svg width="740" height="140" viewBox="0 0 740 140"><rect width="740" height="140" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="14" y="20" font-size="12" font-weight="700" fill="#334155">Pattern picker — which to use?</text>
+<g font-size="11" fill="#334155">
+<text x="20" y="42">Input = image (2D) → CNN pattern (Conv/Pool)</text>
+<text x="20" y="64">Input = text / time (ordered) → LSTM or Transformer</text>
+<text x="20" y="86">Input = tabular (few cols) → MLP (2–3 layers, 32–128)</text>
+<text x="20" y="108">Labels imbalanced (1% pos) → FocalLoss + threshold sweep</text>
+<text x="20" y="130">Need compact code → Autoencoder bottleneck → reuse encoder</text>
+</g>
+</svg>
+</div>
+
+<div class="callout success">Start with one pattern, get it to 90% of target metric, then switch pattern — don’t mix all at once. This library lets you swap a single <code>add(...)</code> line to test a new pattern.</div>
+</section>
+</main></div>
+</body></html>

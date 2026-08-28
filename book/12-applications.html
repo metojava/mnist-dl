@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part VII - Applications - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Application Gallery</h1>
+      <p class="lead" style="font-size:15px">6 domains, 20+ runnable projects</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="active">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="active">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>15 · Application Gallery — 6 Domains, 20+ Runnable Projects</h2>
+  <p class="muted">All under <code>projects.*</code> · Run with <code>mvn compile exec:java -Dexec.mainClass=projects.&lt;pkg&gt;.&lt;Class&gt;</code>. Each shows which layers/losses/optimizers fit the task.</p>
+
+  <h3>Vision — CNNs (P01–P05) <span class="tag">projects/vision</span></h3>
+<pre><code>// P01 MnistClassifier — MLP on 28×28 (784 → 256 → 128 → 64 → 10)
+NeuralNetwork mlp = new NeuralNetwork()
+  .add(new DenseLayer(784,256)).add(new ReLU()).add(new Dropout(0.2))
+  .add(new DenseLayer(256,128)).add(new ReLU()).add(new Dropout(0.2))
+  .add(new DenseLayer(128,64)).add(new ReLU())
+  .add(new DenseLayer(64,10)).add(new Softmax());
+new Trainer(mlp, new CrossEntropyLoss(), new Adam(0.001))
+  .withGradientClipper(new GradientClipper(5.0)).fit(trainX,trainY,10,256);
+
+// P01b FashionMnistClassifier — CNN: Conv→Pool→Conv→Pool→Dense
+NeuralNetwork cnn = new NeuralNetwork()
+  .add(new Conv2D(1,16,3)).add(new ReLU()).add(new MaxPool(2))
+  .add(new Conv2D(16,32,3)).add(new ReLU()).add(new MaxPool(2))
+  .add(new Flatten()).add(new DenseLayer(1568,128)).add(new ReLU())
+  .add(new DenseLayer(128,10)).add(new Softmax());
+
+// P04 MnistAutoencoder — Denoising AE 784→256→64→256→784 with MSELoss
+NeuralNetwork ae = new NeuralNetwork()
+  .add(new DenseLayer(784,256)).add(new ReLU())
+  .add(new DenseLayer(256,64)).add(new ReLU())   // bottleneck
+  .add(new DenseLayer(64,256)).add(new ReLU())
+  .add(new DenseLayer(256,784)).add(new Sigmoid());
+new Trainer(ae, new MSELoss(), new Adam(0.002)).fit(noisyX, cleanY, 10, 256);
+// P03 MnistEnsemble, P05 Cifar100Classifier follow same patterns
+</code></pre>
+
+  <h3>NLP — Embeddings & Transformers (P06–P11) <span class="tag">projects/nlp</span></h3>
+<pre><code>// P06 SentimentAnalyzer — BoW + MLP (CrossEntropy + Adam)
+Vocab vocab = new Vocab(texts); // projects/common/Vocab
+Tensor bow = Tensor.fromFlat(Vocab.bowMatrix(texts,vocab), n, vocab.size);
+NeuralNetwork sent = new NeuralNetwork()
+  .add(new DenseLayer(vocab.size,64)).add(new ReLU()).add(new Dropout(0.3))
+  .add(new DenseLayer(64,2)).add(new Softmax());
+new Trainer(sent, new CrossEntropyLoss(), new Adam(0.005))
+  .withWeightDecay(new WeightDecay(0,1e-3)).fit(trainX,trainY,40,16);
+
+// P09 NextWordPredictor — Embedding → LSTM → Dense
+NeuralNetwork lm = new NeuralNetwork()
+  .add(new Embedding(5000,128))
+  .add(new LSTMLayer(128,128))
+  .add(new DenseLayer(128,5000)).add(new Softmax());
+// P10 NewsTopicClassifier — TransformerBlock stack
+NeuralNetwork topic = new NeuralNetwork()
+  .add(new DenseLayer(vocab.size,256)).add(new LayerNorm(256))
+  .add(new TransformerBlock(256,4,512))
+  .add(new DenseLayer(256,4)).add(new Softmax());
+
+// P08 CharLstmGenerator, P07 LanguageIdentifier, P11 IntentClassifier — same LSTM/GRU patterns
+</code></pre>
+
+  <h3>Tabular — Small MLPs (P12–P15) <span class="tag">projects/tabular</span></h3>
+<pre><code>// P12 IrisClassifier — 4 features → 3 species (Fisher dataset embedded)
+NeuralNetwork iris = new NeuralNetwork()
+  .add(new DenseLayer(4,16)).add(new ReLU())
+  .add(new DenseLayer(16,3)).add(new Softmax());
+new Trainer(iris, new CrossEntropyLoss(), new Adam(0.01)).fit(x,y,120,16);
+
+// P13 WineQualityClassifier, P14 HousePriceRegression (MSELoss, linear head), P15 TitanicSurvival, FraudDetector
+NeuralNetwork house = new NeuralNetwork()
+  .add(new DenseLayer(8,32)).add(new ReLU())
+  .add(new DenseLayer(32,16)).add(new ReLU())
+  .add(new DenseLayer(16,1)); // no activation → regression
+new Trainer(house, new MSELoss(), new Adam(0.01)).fit(features, prices, 100, 32);
+
+// FraudDetector — imbalanced binary → FocalLoss + Sigmoid
+NeuralNetwork fraud = new NeuralNetwork()
+  .add(new DenseLayer(30,64)).add(new ReLU()).add(new Dropout(0.3))
+  .add(new DenseLayer(64,1)).add(new Sigmoid());
+new Trainer(fraud, new FocalLoss(0.25,2.0), new Adam(0.001)).fit(x,y,50,64);
+</code></pre>
+
+  <h3>Time Series — LSTM/GRU (P17–P18) <span class="tag">projects/timeseries</span></h3>
+<pre><code>// P18 TemperatureForecast — 24h lookback → next temp (LSTM + MSE)
+NeuralNetwork temp = new NeuralNetwork()
+  .add(new LSTMLayer(1,64))
+  .add(new DenseLayer(64,32)).add(new ReLU())
+  .add(new DenseLayer(32,1));
+ // manual loop: pred = net.forward(window); grad = 2*(pred-target)/batch; net.backward(grad); net.update(lr);
+
+// P17 StockTrendForecaster — GRU variant
+NeuralNetwork stock = new NeuralNetwork()
+  .add(new GRULayer(5,64))
+  .add(new DenseLayer(64,1)).add(new Sigmoid()); // up/down
+new Trainer(stock, new BinaryCrossEntropyLoss(), new Adam(0.002)).fit(x,y,30,32);
+</code></pre>
+
+  <h3>Anomaly & Recommendation (P19–P20) <span class="tag">projects/anomaly, recommend</span></h3>
+<pre><code>// P19 SensorAnomalyDetector — Autoencoder + reconstruction error threshold
+NeuralNetwork detector = new NeuralNetwork()
+  .add(new DenseLayer(20,12)).add(new ReLU())
+  .add(new DenseLayer(12,4)).add(new ReLU())   // bottleneck 4
+  .add(new DenseLayer(4,12)).add(new ReLU())
+  .add(new DenseLayer(12,20)).add(new Sigmoid());
+new Trainer(detector, new MSELoss(), new Adam(0.001)).fit(normalData, normalData, 50, 32);
+// anomaly if MSE(pred, input) &gt; threshold
+
+// P20 MovieRecommender — Embedding (user+item) → Dot → Sigmoid
+Embedding userEmb = new Embedding(numUsers, 32);
+Embedding itemEmb = new Embedding(numItems, 32);
+// score = sigmoid(dot(userVec, itemVec)) — trained with BinaryCrossEntropy
+</code></pre>
+
+  <div class="callout success"><b>Pattern:</b> Vision = Conv/Pool + CrossEntropy · NLP = Embedding/LSTM/Transformer + CrossEntropy · Tabular = Dense + (CrossEntropy or MSE) · TimeSeries = LSTM/GRU + MSE/BCE · Anomaly = Autoencoder + MSE · Recommend = Embedding + BCE.</div>
+</section>
+
+<!-- ============ FULL EXAMPLE ============ -->
+</section>
+    <div class="page-nav">
+      <a href="11-evaluation.html"><span class="label">Previous</span><span class="title">Evaluation</span></a>
+      <a href="13-full-example.html"><span class="label">Next</span><span class="title">Full Example</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

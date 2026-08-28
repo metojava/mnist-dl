@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CharLstmGenerator - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">CharLstmGenerator</h1><p class="lead" style="font-size:15px">NLP - Char-level LSTM language model, next-char sampling</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/nlp-CharLstmGenerator.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/nlp/CharLstmGenerator.java</div><h2>CharLstmGenerator</h2><p class="muted"><b>NLP</b> - Char-level LSTM language model, next-char sampling</p><h3>ML principles</h3><p>Char-level LSTM language model, next-char sampling</p><h3>Full source</h3><pre><code>package projects.nlp;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.layer.LSTMLayer;
+import projects.common.Proj;
+import projects.common.TextCorpus;
+import projects.common.Vocab;
+
+import java.util.Random;
+
+/**
+ * P09 - Character-level language model (Shakespeare excerpt).
+ * LSTM over one-hot char windows predicts the next character; then generates text.
+ *
+ * Run : mvn compile exec:java &quot;-Dexec.mainClass=projects.nlp.CharLstmGenerator&quot; &quot;-Dexec.args=12 32&quot;
+ */
+public class CharLstmGenerator {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 12), batch = Proj.batch(args, 32);
+        long t0 = System.currentTimeMillis();
+
+        String text = TextCorpus.SHAKESPEARE_EXCERPT;
+        char[] alphabet = Vocab.alphabet();
+        int V = alphabet.length, T = 24;
+
+        int[] targets = new int[text.length()];
+        Tensor x = Vocab.charSequences(text, T, alphabet, targets, 900);
+        System.out.printf(&quot;[P09 CharLSTM] corpus=%d chars vocab=%d windows=%d T=%d%n&quot;,
+            text.length(), V, x.rows(), T);
+
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new LSTMLayer(V, 96));
+        net.add(new ml.layer.DenseLayer(96, V));
+        net.add(new ml.activation.Softmax());
+
+        new Trainer(net, new CrossEntropyLoss(), new Adam(0.01)).fit(x, targets, epochs, batch);
+
+        // Perplexity-ish check on training windows
+        Tensor p = net.forward(x.sliceRows(0, 64), false);
+        double ce = 0;
+        for (int i = 0; i &lt; 64; i++) ce += -Math.log(Math.max(1e-9, p.get(i, targets[i])));
+        System.out.printf(&quot;Avg next-char NLL: %.3f (%.1f perplexity)%n&quot;, ce / 64, Math.exp(ce / 64));
+
+        // Generate
+        Random rng = new Random(7);
+        StringBuilder seedText = new StringBuilder(&quot;To be, or not&quot;);
+        StringBuilder gen = new StringBuilder(seedText);
+        for (int step = 0; step &lt; 400; step++) {
+            String ctx = gen.substring(Math.max(0, gen.length() - T));
+            Tensor in = encode(ctx, T, alphabet);
+            Tensor probs = net.forward(in, false);
+            int next = sample(probs.data(), rng, 0.8);
+            gen.append(alphabet[next]);
+        }
+        System.out.println(&quot;\n--- Generated ---\n&quot; + gen + &quot;\n-----------------&quot;);
+        Proj.footer(&quot;P09 CharLSTM&quot;, t0);
+    }
+
+    private static Tensor encode(String s, int T, char[] alphabet) {
+        int V = alphabet.length;
+        Tensor row = new Tensor(1, T * V);
+        String padded = String.format(&quot;%&quot; + T + &quot;s&quot;, s).substring(s.length() + T - Math.min(s.length(), T) &gt;= 0 ? 0 : 0);
+        // left-pad with spaces if short
+        StringBuilder sb = new StringBuilder(s);
+        while (sb.length() &lt; T) sb.insert(0, &#x27; &#x27;);
+        if (sb.length() &gt; T) sb = new StringBuilder(sb.substring(sb.length() - T));
+        for (int t = 0; t &lt; T; t++) {
+            int ci = Vocab.charIndex(sb.charAt(t), alphabet);
+            if (ci &gt;= 0) row.set(0, t * V + ci, 1.0);
+        }
+        return row;
+    }
+
+    static int sample(double[] probs, Random rng, double temperature) {
+        double[] p = new double[probs.length];
+        double max = java.util.Arrays.stream(probs).max().orElse(1);
+        double sum = 0;
+        for (int i = 0; i &lt; probs.length; i++) { p[i] = Math.exp((probs[i] - max) / temperature); sum += p[i]; }
+        double r = rng.nextDouble() * sum, acc = 0;
+        for (int i = 0; i &lt; p.length; i++) { acc += p[i]; if (r &lt;= acc) return i; }
+        return p.length - 1;
+    }
+}
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.nlp.CharLstmGenerator</span></div></section></main></div>
+</body></html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MNISTClassification - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 15-examples.html</div>
+<h1 style="font-size:28px">MNISTClassification</h1><p class="lead" style="font-size:15px">Fashion-MNIST main demo</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="active">Examples</a><a href="../16-projects.html" class="">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>examples/MNISTClassification.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">examples/MNISTClassification.java</div><h2>MNISTClassification</h2><p class="muted"><b>Fashion-MNIST main demo</b> - The canonical example: loads Fashion-MNIST via MNISTLoader, builds 784-256-128-64-10 + Dropout, trains with Adam+Clip+L2 for 10 epochs, evaluates with Evaluator+ConfusionMatrix, saves chart+model.</p>
+<h3>ML principles</h3><ul><li><b>Fashion-MNIST 10-way classification</b> (more challenging than digits) with MLP regularized by Dropout+WeightDecay+Clip.</li><li><b>Evaluation pipeline</b>: TrainingHistory chart, Evaluator+ConfusionMatrix, per-class metrics, visualization PNG.</li><li><b>Persistence</b>: saveModel .bin (binary) + .png artifacts.</li></ul>
+<h3>Walkthrough</h3><pre><code>train/test = MNISTLoader.load(fashion/*)
+net = 784-256 ReLU Dropout0.2 -256-128 ReLU Dropout0.2 -128-64 ReLU -64-10 Softmax
+opt=Adam(0.001), loss=CrossEntropy, clip=5.0, L2=1e-4
+history = trainer.fit(...,10,256); trainer.saveTrainingChart("training_adam.png");
+Evaluator(CLASS_NAMES).evaluate(...); cm.print(); cm.printClassMetrics(...);
+predict first 20 -> MNISTVisualizer -> predictions_adam.png
+net.saveModel("model_fashion_mnist.bin");
+</code></pre>
+<h3>Full source - <code>src/main/java/examples/MNISTClassification.java</code></h3><pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.optimizer.SGD;
+import ml.loss.CrossEntropyLoss;
+import ml.loss.MSELoss;
+import ml.evaluation.*;
+import ml.regularization.Dropout;
+import ml.regularization.GradientClipper;
+import ml.regularization.WeightDecay;
+import ml.util.MNISTLoader;
+import ml.util.MNISTVisualizer;
+import ml.util.TrainingChart;
+
+public class MNISTClassification {
+    private static final String[] CLASS_NAMES = {
+        &quot;T-shirt/top&quot;, &quot;Trouser&quot;, &quot;Pullover&quot;, &quot;Dress&quot;, &quot;Coat&quot;,
+        &quot;Sandal&quot;, &quot;Shirt&quot;, &quot;Sneaker&quot;, &quot;Bag&quot;, &quot;Ankle boot&quot;
+    };
+
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+
+        System.out.println(&quot;=== Fashion-MNIST Classification ===\n&quot;);
+
+        long loadStart = System.currentTimeMillis();
+        Dataset trainData = MNISTLoader.load(&quot;data/train-images-idx3-ubyte&quot;, &quot;data/train-labels-idx1-ubyte&quot;);
+        Dataset testData = MNISTLoader.load(&quot;data/t10k-images-idx3-ubyte&quot;, &quot;data/t10k-labels-idx1-ubyte&quot;);
+        long loadTime = System.currentTimeMillis() - loadStart;
+
+        System.out.println(&quot;\nBuilding network with Adam optimizer...&quot;);
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new ml.layer.DenseLayer(784, 256));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.regularization.Dropout(0.2));
+        network.add(new ml.layer.DenseLayer(256, 128));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.regularization.Dropout(0.2));
+        network.add(new ml.layer.DenseLayer(128, 64));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.layer.DenseLayer(64, 10));
+        network.add(new ml.activation.Softmax());
+        System.out.println(network);
+
+        Adam optimizer = new Adam(0.001);
+        CrossEntropyLoss loss = new CrossEntropyLoss();
+        Trainer trainer = new Trainer(network, loss, optimizer)
+            .withGradientClipper(new GradientClipper(5.0))
+            .withWeightDecay(new WeightDecay(0, 1e-4));
+
+        System.out.println(&quot;Training...&quot;);
+        long trainStart = System.currentTimeMillis();
+        TrainingHistory history = trainer.fit(trainData.images(), trainData.labels(), 10, 256);
+        long trainTime = System.currentTimeMillis() - trainStart;
+
+        trainer.saveTrainingChart(&quot;training_adam.png&quot;);
+
+        System.out.println(&quot;\nEvaluating...&quot;);
+        long evalStart = System.currentTimeMillis();
+        Evaluator evaluator = new Evaluator(CLASS_NAMES);
+        EvaluationResult result = evaluator.evaluate(network, testData.images(), testData.labels());
+        long evalTime = System.currentTimeMillis() - evalStart;
+
+        System.out.println(&quot;\n&quot; + result);
+        System.out.println();
+        result.confusionMatrix().print();
+        System.out.println();
+        result.confusionMatrix().printClassMetrics(CLASS_NAMES);
+
+        System.out.println(&quot;\nGenerating prediction visualization...&quot;);
+        PredictionResult predResult = evaluator.predict(network,
+            testData.images().sliceRows(0, 20), java.util.Arrays.copyOf(testData.labels(), 20));
+        double[] confidences = new double[20];
+        int[] predicted = new int[20];
+        int[] actual = new int[20];
+        for (int i = 0; i &lt; 20; i++) {
+            predicted[i] = predResult.get(i).predictedLabel();
+            actual[i] = predResult.get(i).actualLabel();
+            confidences[i] = predResult.get(i).confidence();
+        }
+        new MNISTVisualizer(CLASS_NAMES).visualize(
+            testData.images().sliceRows(0, 20), predicted, actual, confidences, 20, &quot;predictions_adam.png&quot;);
+
+        System.out.println(&quot;\n=== Summary ===&quot;);
+        System.out.printf(&quot;Data loading:  %dms%n&quot;, loadTime);
+        System.out.printf(&quot;Training:      %dms%n&quot;, trainTime);
+        System.out.printf(&quot;Evaluation:    %dms%n&quot;, evalTime);
+        System.out.printf(&quot;Total time:    %dms%n&quot;, loadTime + trainTime + evalTime);
+        System.out.printf(&quot;Parameters:    %d%n&quot;, network.totalParameters());
+
+        System.out.println(&quot;\nSaving model...&quot;);
+        network.saveModel(&quot;model_fashion_mnist.bin&quot;);
+    }
+}
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.MNISTClassification</span></div></section></main></div>
+</body></html>

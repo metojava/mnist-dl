@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part II - Recurrence - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Recurrent Layers</h1>
+      <p class="lead" style="font-size:15px">RNN, LSTM (true BPTT), GRU</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="active">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="active">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>7 · Recurrence: RNN, LSTM, GRU</h2>
+  <p class="muted">Sequence layers consume <code>Tensor[batch, seqLen*inputSize]</code> flattened. They are the workhorses for time-series and NLP.</p>
+
+  <h3>RNNLayer <span class="tag">ml/layer/RNNLayer.java</span></h3>
+  <p>Elman RNN with tanh/ReLU/sigmoid/ELU. Supports bidirectional and <code>returnSequences</code>.</p>
+<pre><code>RNNLayer rnn = new RNNLayer(1, 64); // input 1-dim, hidden 64
+RNNLayer birnn = new RNNLayer(8, 32, true); // bidirectional
+RNNLayer seqRnn = new RNNLayer(10, 32, false, true, "relu"); // returns all timesteps
+
+Tensor seq = new Tensor(16, 20*10); // batch 16, seqLen 20, feat 10
+Tensor lastHidden = rnn.forward(seq, true);      // [16,64]
+Tensor allHidden  = seqRnn.forward(seq, true);   // [16,20*32]
+</code></pre>
+
+  <h3>LSTMLayer — True BPTT <span class="tag">ml/layer/LSTMLayer.java</span></h3>
+  <p>Full LSTM with forget/input/output gates + cell state and <b>true backprop-through-time</b>. Bidirectional concatenates forward+backward hiddens. ~4× params of RNN.</p>
+<pre><code>// Temperature forecasting: 24h lookback → next temp
+LSTMLayer lstm = new LSTMLayer(1, 64);
+NeuralNetwork forecaster = new NeuralNetwork()
+  .add(new LSTMLayer(1, 64))          // [batch, 24*1] → [batch,64]
+  .add(new DenseLayer(64, 32))
+  .add(new ReLU())
+  .add(new DenseLayer(32, 1));        // regression output
+
+// Sequence-to-sequence (returnSequences=true) — stack them!
+NeuralNetwork stacked = new NeuralNetwork()
+  .add(new LSTMLayer(10, 64, false, true))  // → [batch, seqLen*64]
+  .add(new LSTMLayer(64, 32))                // → [batch,32]
+  .add(new DenseLayer(32, 5))
+  .add(new Softmax());
+
+// Bidirectional for NLP
+LSTMLayer bilstm = new LSTMLayer(128, 64, true, false);
+System.out.println(lstm.parameterCount()); // 4*(in*hid + hid*hid + hid)
+</code></pre>
+
+  <h3>GRULayer <span class="tag">ml/layer/GRULayer.java</span></h3>
+  <p>Gated Recurrent Unit — 3 gates (update, reset, candidate), lighter than LSTM, strong on small datasets.</p>
+<pre><code>GRULayer gru = new GRULayer(10, 64);
+GRULayer bigru = new GRULayer(10, 32, true);
+NeuralNetwork net = new NeuralNetwork()
+  .add(new Embedding(1000, 32))
+  .add(new GRULayer(32, 64))
+  .add(new DenseLayer(64, 2))
+  .add(new Softmax());
+</code></pre>
+
+  <table class="table">
+    <tr><th>Layer</th><th>Params</th><th>Memory</th><th>Use when</th></tr>
+    <tr><td>RNN</td><td>in·h + h·h + h</td><td>Low</td><td>Short sequences, baseline</td></tr>
+    <tr><td>GRU</td><td>3×(in·h + h·h + h)</td><td>Medium</td><td>Time-series, limited data</td></tr>
+    <tr><td>LSTM</td><td>4×(in·h + h·h + h)</td><td>Higher</td><td>Long dependencies, SOTA offline</td></tr>
+  </table>
+</section>
+
+<!-- ============ CH8 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="03-layers-norm-pool.html"><span class="label">Previous</span><span class="title">Norm & Pool</span></a>
+      <a href="05-layers-attention.html"><span class="label">Next</span><span class="title">Attention</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

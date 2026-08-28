@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cifar100Classifier - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">Cifar100Classifier</h1><p class="lead" style="font-size:15px">Vision - CIFAR-100 folder ImageReader+resize 32x32, CNN 3-16-32 + Max</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/vision-Cifar100Classifier.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/vision/Cifar100Classifier.java</div><h2>Cifar100Classifier</h2><p class="muted"><b>Vision</b> - CIFAR-100 folder ImageReader+resize 32x32, CNN 3-16-32 + MaxPool, 100 classes</p><h3>ML principles</h3><ul><li><b>CNN for 100 classes</b>: Conv3-16 3x3 ReLU MaxPool - Conv16-32 3x3 ReLU MaxPool - Dense256 Softmax.</li><li><b>ImageFolder loader</b>: JavaCV resize 32x32, RGB Tensor.</li><li><b>Class imbalance handling</b> via per-class cap.</li></ul><h3>Full source</h3><pre><code>package projects.vision;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.layer.Conv2D;
+import ml.layer.MaxPool;
+import ml.regularization.Dropout;
+import ml.util.ImageReader;
+import projects.common.Proj;
+
+import java.io.File;
+import java.util.*;
+
+/**
+ * P03 - CIFAR-100 image classification from the ImageFolder layout
+ *       (data/CIFAR-100/{train,test}/&lt;class_name&gt;/*.png), using a small CNN.
+ *
+ * Loads images through JavaCV/OpenCV (ImageReader) and trains:
+ *   Conv(3-&gt;16,3x3)-ReLU-MaxPool - Conv(16-&gt;32,3x3)-ReLU-MaxPool - Dense-Softmax
+ *
+ * Run  : mvn compile exec:java &quot;-Dexec.mainClass=projects.vision.Cifar100Classifier&quot;
+ *        &quot;-Dexec.args=8 64 120&quot;      (epochs, batch, per-class limit; default 120 =&gt; ~12k imgs)
+ */
+public class Cifar100Classifier {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 8), batch = Proj.batch(args, 64);
+        int perClass = Proj.limit(args, 120);
+        long t0 = System.currentTimeMillis();
+
+        System.out.printf(&quot;[P03 CIFAR-100] loading (per-class cap=%d)...%n&quot;, perClass);
+        Dataset train = loadFolder(&quot;data/CIFAR-100/train&quot;, perClass, 42);
+        Dataset test = loadFolder(&quot;data/CIFAR-100/test&quot;, Math.min(perClass, 50), 7);
+        int classes = train.classes();
+        System.out.printf(&quot;train=%d test=%d classes=%d%n&quot;, train.size(), test.size(), classes);
+
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new Conv2D(3, 16, 3));
+        net.add(new ml.activation.ReLU());
+        net.add(new MaxPool(2, 2, 16));                 // 30 -&gt; 15
+        net.add(new Conv2D(16, 32, 3));
+        net.add(new ml.activation.ReLU());
+        net.add(new MaxPool(2, 2, 32));                 // 13 -&gt; 6
+        net.add(new ml.layer.DenseLayer(32 * 6 * 6, 256));
+        net.add(new ml.activation.ReLU());
+        net.add(new Dropout(0.4));
+        net.add(new ml.layer.DenseLayer(256, classes));
+        net.add(new ml.activation.Softmax());
+        System.out.printf(&quot;params=%d%n&quot;, net.totalParameters());
+
+        Trainer trainer = new Trainer(net, new CrossEntropyLoss(), new Adam(0.002));
+        trainer.fit(train.images(), train.labels(), epochs, batch);
+
+        Tensor testOut = net.forward(test.images(), false);
+        int correct = 0;
+        for (int i = 0; i &lt; testOut.rows(); i++) if (testOut.argmaxRow(i) == test.labels()[i]) correct++;
+        System.out.printf(&quot;Test accuracy: %.2f%% (%d/%d)%n&quot;, 100.0 * correct / test.size(), correct, test.size());
+        net.saveModel(Proj.out(&quot;cifar100&quot;).resolve(&quot;model.bin&quot;).toString());
+        Proj.footer(&quot;P03 CIFAR-100&quot;, t0);
+    }
+
+    /** Reads an ImageFolder tree into a Dataset with class-interleaved rows. */
+    private static Dataset loadFolder(String root, int perClass, long seed) {
+        File[] classDirs = new File(root).listFiles(File::isDirectory);
+        Objects.requireNonNull(classDirs, &quot;missing &quot; + root);
+        Arrays.sort(classDirs);
+
+        List&lt;List&lt;File&gt;&gt; byClass = new ArrayList&lt;&gt;();
+        List&lt;String&gt; classNames = new ArrayList&lt;&gt;();
+        for (File d : classDirs) {
+            File[] imgs = d.listFiles((x, n) -&gt; n.toLowerCase().matches(&quot;.*\\.(png|jpg|jpeg|bmp)$&quot;));
+            Arrays.sort(imgs != null ? imgs : new File[0]);
+            List&lt;File&gt; list = new ArrayList&lt;&gt;();
+            if (imgs != null) list.addAll(Arrays.asList(imgs).subList(0, Math.min(perClass, imgs.length)));
+            if (!list.isEmpty()) { byClass.add(list); classNames.add(d.getName()); }
+        }
+
+        Random rng = new Random(seed);
+        List&lt;int[]&gt; positions = new ArrayList&lt;&gt;(); // {classIdx, fileIdx}
+        int total = 0;
+        for (int c = 0; c &lt; byClass.size(); c++) {
+            for (int f = 0; f &lt; byClass.get(c).size(); f++) { positions.add(new int[]{c, f}); total++; }
+        }
+        java.util.Collections.shuffle(positions, rng);   // de-cluster classes
+
+        double[] data = new double[total * 3 * 32 * 32];
+        int[] labels = new int[total];
+        int row = 0;
+        for (int[] pos : positions) {
+            File img = byClass.get(pos[0]).get(pos[1]);
+            ImageReader.ImageData im = ImageReader.read(img.getPath());
+            ImageReader.ImageData r32 = ImageReader.resize(im, 32, 32);
+            Tensor t = ImageReader.toTensor(r32, ImageReader.ColorMode.RGB, true);
+            System.arraycopy(t.data(), 0, data, row * t.cols(), t.cols());
+            labels[row] = pos[0];
+            row++;
+        }
+        if (row % 2000 == 0 || row == total) System.out.printf(&quot;  loaded %d/%d%n&quot;, row, total);
+        return new Dataset(Tensor.fromFlat(data, total, 3 * 32 * 32), labels);
+    }
+}
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.vision.Cifar100Classifier</span></div></section></main></div>
+</body></html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The mnist-dl Handbook - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Welcome</h1>
+      <p class="lead" style="font-size:15px">Online book split by topic - start here</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="active">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="active">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    
+<section class="card">
+  <div class="eyebrow">The mnist-dl Handbook</div>
+  <h2>Welcome - Production Deep Learning in Pure Java</h2>
+  <p class="muted">Library at <code class="inline-code">C:\Users\dell\Desktop\mnist-dl</code> - Java 17, Maven, no native deps. This book is split <b>by topic</b> so each page loads fast and can be printed separately.</p>
+  <div class="grid3">
+    <div class="stat"><b>Parallel Tensor</b><span class="muted">ExecutorService + CompletableFuture, 50k threshold</span></div>
+    <div class="stat"><b>15 Layer Types</b><span class="muted">Dense to TransformerBlock</span></div>
+    <div class="stat"><b>14 Activations</b><span class="muted">ReLU ... PReLU</span></div>
+  </div>
+  <div class="grid3" style="margin-top:14px">
+    <div class="stat"><b>9 Losses</b><span class="muted">CE ... CTC</span></div>
+    <div class="stat"><b>5 Optimizers</b><span class="muted">SGD ... AdaGrad</span></div>
+    <div class="stat"><b>6 Domains</b><span class="muted">Vision/NLP/Tabular/TimeSeries/Anomaly/RecSys</span></div>
+  </div>
+  <h3>How to use this book</h3>
+  <ol>
+    <li>Start with <a href="01-foundations.html">Foundations</a> (Tensor + Layer contract).</li>
+    <li>Pick your stack: <a href="02-layers-core.html">Layers</a> to <a href="07-activations.html">Activations</a> to <a href="08-losses.html">Losses</a> to <a href="09-optimizers.html">Optimizers</a>.</li>
+    <li>Wire with <a href="10-training.html">Training</a> and verify with <a href="11-evaluation.html">Evaluation</a>.</li>
+    <li>Copy the <a href="13-full-example.html">Full Example</a> that touches <em>every</em> component.</li>
+  </ol>
+  <div class="callout">Code font is <b>+4px</b> (pre 13 to 17px, inline 12.5 to 16.5px) for readability. All pages share <code>style.css</code>.</div>
+  <h3>Quickstart - 30 seconds</h3>
+<pre><code>NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784, 256))
+  .add(new ReLU())
+  .add(new Dropout(0.2))
+  .add(new DenseLayer(256, 10))
+  .add(new Softmax());
+Trainer trainer = new Trainer(net, new CrossEntropyLoss(), new Adam(0.001));
+trainer.fit(trainImages, trainLabels, 10, 256);
+System.out.println(new Evaluator(classNames).evaluate(net, testImages, testLabels));</code></pre>
+  <p class="muted">Build: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.MNISTClassification</span></p>
+</section>
+<section class="card">
+  <h3>Topic map</h3>
+  <table class="table">
+    <tr><th>Page</th><th>What you learn</th><th>Key files</th></tr>
+    <tr><td><a href="01-foundations.html">01 Foundations</a></td><td>Philosophy, Tensor, Layer interface</td><td><code>ml/core/Tensor.java</code>, <code>ml/layer/Layer.java</code></td></tr>
+    <tr><td><a href="02-layers-core.html">02 Core Layers</a></td><td>Dense, Conv2D, Flatten, Embedding</td><td><code>ml/layer/DenseLayer.java</code>, <code>Conv2D.java</code></td></tr>
+    <tr><td><a href="03-layers-norm-pool.html">03 Norm and Pool</a></td><td>BatchNorm, LayerNorm, MaxPool, AvgPool</td><td><code>BatchNorm.java</code>, <code>MaxPool.java</code></td></tr>
+    <tr><td><a href="04-layers-recurrent.html">04 Recurrent</a></td><td>RNN, LSTM (BPTT), GRU</td><td><code>RNNLayer.java</code>, <code>LSTMLayer.java</code></td></tr>
+    <tr><td><a href="05-layers-attention.html">05 Attention</a></td><td>SelfAttention, MultiHead, TransformerBlock</td><td><code>TransformerBlock.java</code></td></tr>
+    <tr><td><a href="06-regularization.html">06 Regularization</a></td><td>Dropout, WeightDecay, GradientClipper + Augmentation</td><td><code>ml/regularization/*</code>, <code>ml/augmentation/*</code></td></tr>
+    <tr><td><a href="07-activations.html">07 Activations</a></td><td>All 14 with formulas</td><td><code>ml/activation/*</code></td></tr>
+    <tr><td><a href="08-losses.html">08 Losses</a></td><td>All 9 with pairings</td><td><code>ml/loss/*</code></td></tr>
+    <tr><td><a href="09-optimizers.html">09 Optimizers</a></td><td>SGD, Adam, AdamW, RMSProp, AdaGrad</td><td><code>ml/optimizer/*</code></td></tr>
+    <tr><td><a href="10-training.html">10 Training</a></td><td>NeuralNetwork, Trainer, DataLoader, LRScheduler</td><td><code>ml/training/*</code></td></tr>
+    <tr><td><a href="11-evaluation.html">11 Evaluation</a></td><td>Evaluator, ConfusionMatrix, persistence</td><td><code>ml/evaluation/*</code>, <code>ml/network/ModelSerializer.java</code></td></tr>
+    <tr><td><a href="12-applications.html">12 Applications</a></td><td>Vision/NLP/Tabular/TimeSeries/Anomaly/RecSys</td><td><code>projects/*</code></td></tr>
+    <tr><td><a href="13-full-example.html">13 Full Example</a></td><td>End-to-end showcase touching every component</td><td><code>examples/FullShowcase.java</code></td></tr>
+    <tr><td><a href="14-appendix.html">Appendix</a></td><td>Cheatsheet, decision tree, pitfalls</td><td>-</td></tr>
+    <tr><td><a href="15-examples.html">15 Examples</a></td><td>10 runnable mains - training loops & benches</td><td><code>src/main/java/examples/*</code></td></tr>
+    <tr><td><a href="16-projects.html">16 Projects</a></td><td>23 templates - 6 domains</td><td><code>src/main/java/projects/*</code></td></tr>
+    <tr><td><a href="17-performance.html">17 Performance</a></td><td>Tuning Tensor, Trainer, batch, optimizer</td><td><code>ml/core/Tensor.java:7</code></td></tr>
+  </table>
+</section>
+
+    <div class="page-nav">
+      <span></span>
+      <a href="01-foundations.html"><span class="label">Next</span><span class="title">Foundations</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

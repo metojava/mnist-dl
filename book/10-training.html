@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part VI - Training - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Training Stack</h1>
+      <p class="lead" style="font-size:15px">NeuralNetwork, Trainer, DataLoader, LRScheduler</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="active">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="active">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>13 · Training Stack: NeuralNetwork, Trainer, DataLoader & Friends</h2>
+
+  <h3>NeuralNetwork — The Container <span class="tag">ml/network/NeuralNetwork.java</span></h3>
+<pre><code>NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784,256)).add(new ReLU())
+  .add(new DenseLayer(256,10)).add(new Softmax());
+
+Tensor out = net.forward(batch);          // inference
+Tensor out2= net.forward(batch, true);    // training (activates dropout/aug)
+net.backward(grad);                       // backprop
+net.update(0.001);                        // SGD step (usually via optimizer)
+int pred = net.predict(singleSample);     // argmax
+int[] preds = net.predictBatch(batch);
+double[] probs = net.predictSingle(new double[784]);
+System.out.println(net);                  // layer table + total params
+System.out.println(net.totalParameters());
+List&lt;Layer&gt; layers = net.getLayers();
+
+// Save / load
+net.saveModel("model.bin");               // binary (preferred)
+net.saveJson("model.json");               // human-readable JSON
+NeuralNetwork loaded = NeuralNetwork.loadModel("model.bin");
+NeuralNetwork fromJson = NeuralNetwork.loadJson("model.json");
+// ModelSerializer also handles optimizer states & embeddings
+</code></pre>
+
+  <h3>Trainer & EarlyStoppingTrainer <span class="tag">ml/training/Trainer.java</span></h3>
+<pre><code>Trainer trainer = new Trainer(net, new CrossEntropyLoss(), new Adam(0.001))
+  .withGradientClipper(new GradientClipper(5.0))
+  .withWeightDecay(new WeightDecay(0, 1e-4));
+
+TrainingHistory hist = trainer.fit(trainX, trainY, 10, 256); // epochs, batch
+trainer.saveTrainingChart("training.png"); // JFreeChart PNG
+
+// Data-parallel variant
+trainer.fitParallel(trainX, trainY, 10, 256, 4); // numWorkers
+
+// With callbacks / iterators
+DataLoader loader = new DataLoader(64, true); // shuffle=true
+TrainingHistory h2 = trainer.fit(loader.iterate(trainX,trainY),
+                                  loader.iterate(valX,valY), 20);
+
+// Learning-rate scheduling
+LRScheduler sched = LRScheduler.cosineAnnealing(0.001, 100, 1e-6);
+LRScheduler step  = LRScheduler.stepDecay(0.01, 10, 0.1);
+LRScheduler exp   = LRScheduler.exponentialDecay(0.01, 0.96);
+LRScheduler warm  = LRScheduler.warmupCosine(0.001, 100, 5);
+LRScheduler plat  = LRScheduler.reduceOnPlateau(0.001, 0.5, 5);
+for(int epoch=0; epoch&lt;100; epoch++){
+  double lr = sched.step(epoch, valLoss);
+  trainer.setLearningRate(lr);
+}
+
+// Early stopping (restores best weights)
+EarlyStoppingTrainer est = new EarlyStoppingTrainer(net, loss, new Adam(0.001), 5) // patience 5
+  .withGradientClipper(new GradientClipper(1.0))
+  .withLRScheduler(LRScheduler.reduceOnPlateau(0.001,0.5,3));
+TrainingHistory h3 = est.fit(trainX,trainY, valX,valY, 100, 64);
+
+// History inspection
+System.out.println(hist.bestLoss() + " at epoch " + hist.bestEpoch());
+System.out.println(hist.lastLoss() + " | total " + hist.totalTimeMs()+"ms");
+</code></pre>
+
+  <h3>DataLoader & Dataset <span class="tag">ml/training/DataLoader.java</span></h3>
+<pre><code>DataLoader loader = new DataLoader(32); // batch 32, shuffle true
+DataLoader noShuffle = new DataLoader(32, false);
+DataLoader.BatchIterator it = loader.iterate(images, labels);
+while(it.hasNext()){
+  DataLoader.Batch b = it.next();
+  Tensor x = b.images(); int[] y = b.labels(); int n = b.size();
+}
+
+Dataset ds = MNISTLoader.load("data/train-images-idx3-ubyte","data/train-labels-idx1-ubyte");
+Tensor trainImages = ds.images(); int[] trainLabels = ds.labels();
+
+// Utilities
+SeedManager.setSeed(42); // deterministic runs
+ThreadPoolManager.parallelism(); // available cores
+</code></pre>
+
+  <h3>Initializers, Callbacks, Checkpoint <span class="tag">ml/training/*</span></h3>
+<pre><code>ModelCheckpoint ckpt = new ModelCheckpoint("ckpt.bin", true); // save best
+TensorBoardLogger tb = new TensorBoardLogger("runs/exp1");
+Callback cb = new Callback(){ public void onEpochEnd(int e,double loss){ System.out.println(e+": "+loss);} };
+ModelSummary.summary(net); // prints table
+Metrics.accuracy(pred, labels);
+</code></pre>
+</section>
+
+<!-- ============ CH14 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="09-optimizers.html"><span class="label">Previous</span><span class="title">Optimizers</span></a>
+      <a href="11-evaluation.html"><span class="label">Next</span><span class="title">Evaluation</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>22 · Save / Load - mnist-dl Handbook</title><link rel="stylesheet" href="style.css">
+<style>.formula{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:14px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.5;overflow:auto}</style>
+</head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 · Persistence</div>
+<h1 style="font-size:30px">22 · Save / Load</h1><p class="lead" style="font-size:15px">Binary vs JSON vs SafeTensors vs ONNX (+ Optimizer)</p></div></div></header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="active">Save/Load</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="active">22 · Save/Load</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">Four formats + optimizer checkpoint</div></nav>
+<main class="content">
+<section class="card">
+<div class="eyebrow">API · ml/network/</div>
+<h2>22 · Saving & Loading — Binary vs JSON vs SafeTensors vs ONNX (+ Optimizer)</h2>
+<p class="muted">Yes — the API saves to <b>four distinct formats</b> plus optimizer checkpoints. This page is the definitive reference.</p>
+<div class="callout">Answer: <b>Yes, covered briefly in 11 · Evaluation and expanded here.</b> <code>NeuralNetwork</code> delegates to <code>ModelSerializer</code> (<code>ml/network/ModelSerializer.java:18</code> and <code>ml/network/NeuralNetwork.java:81</code>) which implements <b>binary</b> (full), <b>JSON</b> (partial), <b>Safetensors</b> and <b>ONNX</b>.</div>
+<h3>One-line API — all four formats</h3>
+<pre><code>// Binary (preferred, versioned "mnist-dl/2.0")
+net.saveModel("model.bin"); // NeuralNetwork.java:83 -> ModelSerializer.saveBinary:190
+NeuralNetwork n1 = NeuralNetwork.loadModel("model.bin"); // ModelSerializer.loadBinary:287
+
+// JSON (diffable, "mnist-dl/1.0")
+net.saveJson("model.json"); // ModelSerializer.saveJson:22
+NeuralNetwork n2 = NeuralNetwork.loadJson("model.json"); // ModelSerializer.loadJson:90
+
+// SafeTensors (HF compatible, F64 LE)
+net.saveSafetensors("model.safetensors"); // NeuralNetwork.java:99 -> ModelSerializer.saveSafetensors
+NeuralNetwork n3 = NeuralNetwork.loadSafetensors("model.safetensors");
+
+// ONNX (JSON-based, ir_version 7)
+net.saveOnnx("model.onnx"); // NeuralNetwork.java:107 -> ModelSerializer.saveOnnx
+NeuralNetwork n4 = NeuralNetwork.loadOnnx("model.onnx");
+
+// Optimizer state (binary)
+ModelSerializer.saveOptimizer(new Adam(0.001), "adam.bin"); // ModelSerializer.saveOptimizer:447
+Optimizer resumed = ModelSerializer.loadOptimizer("adam.bin"); // ModelSerializer.loadOptimizer:469
+</code></pre>
+<h3>Format comparison</h3>
+<table class="table">
+<tr><th>Aspect</th><th>Binary .bin</th><th>JSON .json</th><th>SafeTensors .safetensors</th><th>ONNX .onnx</th></tr>
+<tr><td>Header</td><td>mnist-dl/2.0</td><td>{"format":"mnist-dl/1.0"}</td><td>8B LE header_len + JSON header + raw LE F64</td><td>{"ir_version":7,"producer":"mnist-dl 2.0","graph":{...}}</td></tr>
+<tr><td>Encoding</td><td>DataOutputStream LE doubles writeDoubles:522</td><td>UTF-8 text arrays</td><td>dtype:"F64", shape:[r,c], data_offsets</td><td>nodes (Gemm/Conv/Relu...) + initializers + layers[]</td></tr>
+<tr><td>Size / speed</td><td>~8B/param fastest</td><td>3-5x larger slower</td><td>Same as binary + KB header, HF-compatible</td><td>2-4x larger, portable</td></tr>
+<tr><td>Coverage</td><td>Full 17+4 layers</td><td>Partial (Dense/BatchNorm/LayerNorm/Conv/Embedding etc.)</td><td>Full for weights (Dense, BatchNorm, LayerNorm, Conv, Embedding) + arch in __metadata__</td><td>Full (nodes mapped to Gemm/Conv/Relu/Softmax/BatchNormalization/Gather/LSTM etc.) + layers[]</td></tr>
+<tr><td>Interop</td><td>mnist-dl only</td><td>mnist-dl only</td><td>HuggingFace safetensors.torch.load_file (F64)</td><td>JSON ONNX -> convert to protobuf via Python onnx</td></tr>
+</table>
+<div class="callout warn"><b>JSON partial:</b> layerToJson:44 only subset; loadJson:104 lacks LSTM/Attention — use binary/safetensors/onnx for those.</div>
+<h3>SafeTensors file layout</h3>
+<div class="formula">File = [header_len:u64 LE][header JSON][data bytes]<br>Entry: "layer_0.DenseLayer.weights": {"dtype":"F64","shape":[256,784],"data_offsets":[0,802816]}<br>Metadata: "__metadata__": {"format":"mnist-dl/safetensors:1.0","architecture":"[{...}]"}</div>
+<h3>ONNX graph</h3>
+<div class="formula">ir_version=7, producer mnist-dl 2.0, graph { nodes:[{op_type:"Gemm",transB:1}, {op_type:"Relu"}, {op_type:"Softmax"}, {op_type:"Conv",kernel_shape:[3,3]}], initializers:[{name:"layer_0_W",dims:[256,784],data:[...]}], layers:[{type:"ml.layer.DenseLayer",inputSize:784,outputSize:256}]}</div>
+<h3>End-to-end</h3>
+<pre><code>NeuralNetwork net = new NeuralNetwork().add(new DenseLayer(784,256)).add(new ReLU()).add(new DenseLayer(256,10)).add(new Softmax());
+new Trainer(net, new CrossEntropyLoss(), new Adam(0.001)).fit(train, labels, 5, 128);
+net.saveModel("m.bin"); net.saveJson("m.json"); net.saveSafetensors("m.safetensors"); net.saveOnnx("m.onnx");
+NeuralNetwork a = NeuralNetwork.loadModel("m.bin");
+NeuralNetwork b = NeuralNetwork.loadSafetensors("m.safetensors");
+NeuralNetwork c = NeuralNetwork.loadOnnx("m.onnx");
+</code></pre>
+</section>
+</main></div>
+</body></html>

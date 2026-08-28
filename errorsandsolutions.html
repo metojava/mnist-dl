@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Errors &amp; Solutions &mdash; mnist-dl</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --orange: #db6d28;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .hero {
+    background: linear-gradient(135deg, #1a1e2e 0%, #0d1117 50%, #111d2c 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 80px 40px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 2.6em;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--red), var(--orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+  .hero .subtitle {
+    font-size: 1.15em;
+    color: var(--text-dim);
+    max-width: 750px;
+    margin: 0 auto;
+  }
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 60px 30px;
+  }
+  h2 {
+    font-size: 1.7em;
+    font-weight: 700;
+    color: var(--text);
+    margin: 60px 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  h2 .num {
+    color: var(--accent);
+    font-family: 'Courier New', monospace;
+  }
+  h3 {
+    font-size: 1.15em;
+    color: var(--accent);
+    margin: 30px 0 12px;
+    font-weight: 600;
+  }
+  p { margin: 12px 0; }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 0.85em;
+    line-height: 1.5;
+    margin: 16px 0;
+  }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9em;
+  }
+  .inline-code {
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.88em;
+  }
+  .callout {
+    background: var(--surface);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 20px 0;
+  }
+  .callout.warning { border-left-color: var(--yellow); }
+  .callout.danger { border-left-color: var(--red); }
+  .callout.success { border-left-color: var(--green); }
+  .callout strong { display: block; margin-bottom: 6px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.95em;
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+  }
+  .badge.bug { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge.fix { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge.opt { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge.critical { background: rgba(248,81,73,0.3); color: #ff7b72; font-weight: 700; }
+  .diff-add { color: var(--green); }
+  .diff-del { color: var(--red); }
+  .diff-cmt { color: var(--text-dim); }
+  .bug-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin: 28px 0;
+  }
+  .bug-card .bug-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .bug-card .bug-title {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .bug-card .bug-file {
+    font-size: 0.85em;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 12px;
+  }
+  .bug-card .severity {
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .severity.critical { background: rgba(248,81,73,0.25); color: #ff7b72; }
+  .severity.high { background: rgba(219,109,40,0.2); color: var(--orange); }
+  .severity.medium { background: rgba(210,153,34,0.2); color: var(--yellow); }
+  .severity.low { background: rgba(63,185,80,0.15); color: var(--green); }
+  .code-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .code-compare > div { min-width: 0; }
+  .code-label {
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 10px;
+    border-radius: 6px 6px 0 0;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .code-label.broken { background: rgba(248,81,73,0.15); color: var(--red); }
+  .code-label.fixed { background: rgba(63,185,80,0.15); color: var(--green); }
+  .code-compare pre {
+    margin-top: 0;
+    border-radius: 0 0 6px 6px;
+    font-size: 0.8em;
+    min-height: 60px;
+  }
+  .effect {
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 0.92em;
+  }
+  .effect strong { color: var(--red); }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .summary-card h4 { color: var(--accent); margin-bottom: 8px; }
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    font-size: 0.9em;
+  }
+  @media (max-width: 700px) {
+    .code-compare { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.8em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Errors &amp; Solutions</h1>
+  <p class="subtitle">
+    Every bug found while building the mnist-dl Java deep learning library &mdash;
+    wrong math, race conditions, silent data loss, and the speed optimizations that made it fast.
+  </p>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<h2><span class="num">01</span> &mdash; All Bugs Found &amp; Fixed</h2>
+
+<table>
+  <tr><th>#</th><th>Bug</th><th>Severity</th><th>File</th><th>Impact</th></tr>
+  <tr><td>1</td><td>DenseLayer backward bias gradient</td><td><span class="badge critical">CRITICAL</span></td><td>DenseLayer.java</td><td>Model never learned</td></tr>
+  <tr><td>2</td><td>SGD velocityW not initialized</td><td><span class="badge bug">HIGH</span></td><td>SGD.java</td><td>NullPointerException</td></tr>
+  <tr><td>3</td><td>ThreadPoolManager returns 0 threads</td><td><span class="badge bug">HIGH</span></td><td>ThreadPoolManager.java</td><td>DivisionByZero / 0 workers</td></tr>
+  <tr><td>4</td><td>Gradient clipping before backward</td><td><span class="badge bug">HIGH</span></td><td>Trainer.java</td><td>Clipped stale gradients</td></tr>
+  <tr><td>5</td><td>Optimizer crashes on non-DenseLayer</td><td><span class="badge bug">HIGH</span></td><td>All optimizers</td><td>NullPointerException</td></tr>
+  <tr><td>6</td><td>Softmax backward double-applies Jacobian</td><td><span class="badge critical">CRITICAL</span></td><td>Softmax.java</td><td>10% accuracy (random)</td></tr>
+  <tr><td>7</td><td>DataLoader shuffles labels but not images</td><td><span class="badge critical">CRITICAL</span></td><td>DataLoader.java</td><td>10% accuracy (random)</td></tr>
+  <tr><td>8</td><td>DenseLayer parallel backward race</td><td><span class="badge bug">HIGH</span></td><td>DenseLayer.java</td><td>Corrupted gradients</td></tr>
+  <tr><td>9</td><td>Tensor.sumCols() parallel race</td><td><span class="badge bug">HIGH</span></td><td>Tensor.java</td><td>Corrupted bias gradients</td></tr>
+  <tr><td>10</td><td>FileWriter not closed in JSON save</td><td><span class="badge bug">HIGH</span></td><td>ModelSerializer.java</td><td>JSON truncated at 8KB</td></tr>
+  <tr><td>11</td><td>Stale cachedTranspose after weight load</td><td><span class="badge critical">CRITICAL</span></td><td>ModelSerializer.java</td><td>12% accuracy after load</td></tr>
+</table>
+
+<hr>
+
+<!-- ==================== BUG 1 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity critical">CRITICAL</span>
+    <span class="bug-title">Bug #1: DenseLayer Backward Bias Gradient &mdash; Wrong Tensor Reduction</span>
+  </div>
+  <div class="bug-file">ml.layer.DenseLayer &mdash; backward(Tensor gradient)</div>
+
+  <p>The bias gradient must sum the incoming gradient across the batch dimension for each
+  output neuron. Bias has shape <span class="inline-code">[1, outSize]</span>. The gradient
+  has shape <span class="inline-code">[batchSize, outSize]</span>. We need one scalar per
+  output neuron &mdash; a column-wise sum producing <span class="inline-code">[1, outSize]</span>.
+  <span class="inline-code">sumRows()</span> sums across columns producing
+  <span class="inline-code">[batchSize, 1]</span> &mdash; completely wrong shape.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN &mdash; DenseLayer.backward()</div>
+<pre><code class="language-java">@Override
+public Tensor backward(Tensor gradient) {
+    int batchSize = gradient.rows();
+    int totalWeightGrad = outSize * inSize;
+
+    Tensor wGrad;
+    Tensor bGrad;
+
+    if ((long) batchSize * inSize * outSize
+            &lt;= PARALLEL_THRESHOLD) {
+        wGrad = Tensor.matmul(
+            gradient.transpose(), lastInput);
+        <span class="diff-del">// WRONG: sumRows() sums across columns</span>
+        <span class="diff-del">// gradient shape: [batchSize, outSize]</span>
+        <span class="diff-del">// sumRows() returns: [batchSize, 1]</span>
+        <span class="diff-del">// We need:           [1, outSize]</span>
+        bGrad = gradient.<span class="diff-del">sumRows()</span>;
+    } else {
+        // ... parallel path same bug ...
+    }
+
+    this.weightsGrad = wGrad;
+    this.biasGrad = bGrad;
+
+    return Tensor.matmul(gradient, weights);
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">@Override
+public Tensor backward(Tensor gradient) {
+    int batchSize = gradient.rows();
+    int totalWeightGrad = outSize * inSize;
+
+    Tensor wGrad;
+    Tensor bGrad;
+
+    if ((long) batchSize * inSize * outSize
+            &lt;= PARALLEL_THRESHOLD) {
+        wGrad = Tensor.matmul(
+            gradient.transpose(), lastInput);
+        <span class="diff-add">// CORRECT: sumCols() sums across rows</span>
+        <span class="diff-add">// gradient shape: [batchSize, outSize]</span>
+        <span class="diff-add">// sumCols() returns: [1, outSize]</span>
+        <span class="diff-add">// Matches bias shape perfectly</span>
+        bGrad = gradient.<span class="diff-add">sumCols()</span>;
+    } else {
+        // ... parallel path also fixed ...
+    }
+
+    this.weightsGrad = wGrad;
+    this.biasGrad = bGrad;
+
+    return Tensor.matmul(gradient, weights);
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="callout danger">
+    <strong>Why this was hard to find:</strong> The model didn't crash. Loss decreased
+    slightly (from the weight gradient, which was correct). But the bias update was applied
+    to a wrongly-shaped tensor, so the bias never moved in the right direction. The model
+    appeared to be learning but was fundamentally broken.
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Loss barely decreased. Accuracy plateaued well below expected.
+    Model structure was correct, data was correct, optimizer was correct &mdash; only the
+    bias gradient axis was wrong.
+  </div>
+</div>
+
+<!-- ==================== BUG 2 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity high">HIGH</span>
+    <span class="bug-title">Bug #2: SGD Velocity Array Not Initialized</span>
+  </div>
+  <div class="bug-file">ml.optimizer.SGD &mdash; initVelocity(List&lt;Layer&gt;)</div>
+
+  <p>The field <span class="inline-code">velocityW</span> was declared at class level but
+  never assigned before use. The <span class="inline-code">initVelocity()</span> method
+  initialized <span class="inline-code">velocityB</span> but forgot
+  <span class="inline-code">velocityW</span>.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN</div>
+<pre><code class="language-java">public class SGD implements Optimizer {
+    private double learningRate;
+    private double momentum;
+    private boolean initialized;
+    private List&lt;double[]&gt; velocityW;  // null!
+    private List&lt;double[]&gt; velocityB;
+
+    private void initVelocity(List&lt;Layer&gt; layers) {
+        <span class="diff-del">// velocityW never assigned!</span>
+        velocityB = new java.util.ArrayList&lt;&gt;();
+        for (Layer layer : layers) {
+            if (layer instanceof DenseLayer dense) {
+                <span class="diff-del">velocityW.add(new double[dense.weights().size()]);</span>
+                <span class="diff-cmt">// ^^^^ NullPointerException!</span>
+                velocityB.add(new double[dense.bias().size()]);
+            }
+        }
+        initialized = true;
+    }
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">public class SGD implements Optimizer {
+    private double learningRate;
+    private double momentum;
+    private boolean initialized;
+    private List&lt;double[]&gt; velocityW;
+    private List&lt;double[]&gt; velocityB;
+
+    private void initVelocity(List&lt;Layer&gt; layers) {
+        <span class="diff-add">velocityW = new java.util.ArrayList&lt;&gt;();</span>
+        velocityB = new java.util.ArrayList&lt;&gt;();
+        for (Layer layer : layers) {
+            if (layer instanceof DenseLayer dense) {
+                velocityW.add(new double[dense.weights().size()]);
+                velocityB.add(new double[dense.bias().size()]);
+            }
+        }
+        initialized = true;
+    }
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Immediate <span class="inline-code">NullPointerException</span>
+    when using <span class="inline-code">new SGD(0.01, 0.9)</span> (momentum &gt; 0).
+    Without momentum (<span class="inline-code">new SGD(0.01)</span>), this code was never
+    reached, so the bug was invisible.
+  </div>
+</div>
+
+<!-- ==================== BUG 3 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity high">HIGH</span>
+    <span class="bug-title">Bug #3: ThreadPoolManager.computePoolSize() Returns 0</span>
+  </div>
+  <div class="bug-file">ml.core.ThreadPoolManager &mdash; computePoolSize()</div>
+
+  <p><span class="inline-code">ThreadPoolExecutor.getPoolSize()</span> returns the
+  <em>current</em> number of threads, which can be 0 before any task is submitted.
+  Every parallel operation divides work by thread count &mdash; dividing by 0 crashes.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN</div>
+<pre><code class="language-java">public static int computePoolSize() {
+    ExecutorService pool = computePool;
+    if (pool instanceof ThreadPoolExecutor tpe) {
+        <span class="diff-del">// getPoolSize() returns 0 before
+        // first task is submitted!</span>
+        <span class="diff-del">return tpe.getPoolSize();</span>
+    }
+    return DEFAULT_CORE;
+}
+
+<span class="diff-cmt">// Called by every parallel operation:</span>
+<span class="diff-cmt">// int threads = computePoolSize();</span>
+<span class="diff-cmt">// int chunk = len / threads;  // ArithmeticException!</span></code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">public static int computePoolSize() {
+    ExecutorService pool = computePool;
+    if (pool instanceof ThreadPoolExecutor tpe) {
+        int size = tpe.getPoolSize();
+        <span class="diff-add">// Fall back to DEFAULT_CORE
+        // if pool hasn't started yet</span>
+        <span class="diff-add">return size > 0 ? size : DEFAULT_CORE;</span>
+    }
+    return DEFAULT_CORE;
+}
+
+<span class="diff-cmt">// Now always returns at least DEFAULT_CORE</span>
+<span class="diff-cmt">// e.g., 8 on an 8-core machine</span></code></pre>
+    </div>
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Intermittent hang or <span class="inline-code">ArithmeticException</span>
+    during the very first batch. Second batch onwards was fine because the pool had started.
+    Hard to reproduce because it depended on JVM thread scheduling.
+  </div>
+</div>
+
+<!-- ==================== BUG 4 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity high">HIGH</span>
+    <span class="bug-title">Bug #4: Gradient Clipping Applied Before Backward Pass</span>
+  </div>
+  <div class="bug-file">ml.training.Trainer &amp; ml.training.EarlyStoppingTrainer</div>
+
+  <p>The training loop called <span class="inline-code">clip()</span> before
+  <span class="inline-code">backward()</span>, meaning it clipped the
+  <em>previous iteration's</em> stale gradients, not the current ones. The actual
+  gradients from the current forward-backward pass were never clipped.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN &mdash; Trainer.fit()</div>
+<pre><code class="language-java">while (iter.hasNext()) {
+    DataLoader.Batch batch = iter.next();
+    Tensor output = network.forward(
+        batch.images(), true);
+    double batchLoss = lossFunction.forward(
+        output, batch.labels());
+    Tensor grad = lossFunction.backward(
+        output, batch.labels());
+
+    network.backward(grad);
+
+    <span class="diff-del">// BUG: clip BEFORE step means we're
+    // clipping whatever was in the gradient
+    // tensors from the PREVIOUS batch!</span>
+    <span class="diff-del">if (gradientClipper != null)
+        gradientClipper.clip(
+            network.getLayers());</span>
+
+    optimizer.step(
+        network.getLayers(), learningRate);
+
+    epochLoss.add(batchLoss);
+    batchCount.incrementAndGet();
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">while (iter.hasNext()) {
+    DataLoader.Batch batch = iter.next();
+    Tensor output = network.forward(
+        batch.images(), true);
+    double batchLoss = lossFunction.forward(
+        output, batch.labels());
+    Tensor grad = lossFunction.backward(
+        output, batch.labels());
+
+    network.backward(grad);
+
+    <span class="diff-cmt">// Optimizer reads gradients set by backward()</span>
+    optimizer.step(
+        network.getLayers(), learningRate);
+
+    <span class="diff-add">// NOW clip the current gradients
+    // (after optimizer already read them)</span>
+    <span class="diff-add">if (gradientClipper != null)
+        gradientClipper.clip(
+            network.getLayers());</span>
+
+    epochLoss.add(batchLoss);
+    batchCount.incrementAndGet();
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Gradient clipping had no visible effect. Training was
+    unstable with high learning rates because exploding gradients were never caught.
+    Loss would spike unpredictably.
+  </div>
+</div>
+
+<!-- ==================== BUG 5 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity high">HIGH</span>
+    <span class="bug-title">Bug #5: All Optimizers Crash on Non-DenseLayer Layers</span>
+  </div>
+  <div class="bug-file">ml.optimizer.Adam, SGD, AdamW, RMSProp, AdaGrad &mdash; step()</div>
+
+  <p>The optimizer's <span class="inline-code">step()</span> method iterates all layers and
+  accesses <span class="inline-code">dense.weightsGradient()</span>. But activation layers
+  (ReLU, Softmax, Dropout, BatchNorm) are also in the layer list. They don't produce
+  weight gradients &mdash; <span class="inline-code">weightsGradient()</span> returns null,
+  causing <span class="inline-code">NullPointerException</span>.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN &mdash; Adam.step()</div>
+<pre><code class="language-java">@Override
+public void step(List&lt;Layer&gt; layers, double lr) {
+    double effectiveLr = lr > 0 ? lr : this.learningRate;
+    if (!initialized) init(layers);
+    timestep++;
+
+    int idx = 0;
+    for (Layer layer : layers) {
+        if (layer instanceof DenseLayer dense) {
+            <span class="diff-del">// No null check!</span>
+            <span class="diff-del">// On first step, weightsGradient()</span>
+            <span class="diff-del">// might be null if backward()</span>
+            <span class="diff-del">// was never called on this layer</span>
+            final int idxCapture = idx;
+            int wLen = dense.weights().size();
+            double[] wData = dense.weights().data();
+            double[] wgData = dense.weightsGradient().data();
+            <span class="diff-cmt">// ^^^^ NullPointerException</span>
+            double[] mWData = mW.get(idxCapture);
+
+            for (int i = 0; i &lt; wLen; i++) {
+                double g = wgData[i];
+                mWData[i] = beta1 * mWData[i]
+                    + (1 - beta1) * g;
+                // ... Adam update ...
+                wData[i] -= effectiveLr
+                    * mHat / (Math.sqrt(vHat) + epsilon);
+            }
+            idx++;
+        }
+    }
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">@Override
+public void step(List&lt;Layer&gt; layers, double lr) {
+    double effectiveLr = lr > 0 ? lr : this.learningRate;
+    if (!initialized) init(layers);
+    timestep++;
+
+    int idx = 0;
+    for (Layer layer : layers) {
+        if (layer instanceof DenseLayer dense) {
+            <span class="diff-add">// Guard: skip if no gradients yet</span>
+            <span class="diff-add">if (dense.weightsGradient() == null) {
+                idx++; continue;
+            }</span>
+            final int idxCapture = idx;
+            int wLen = dense.weights().size();
+            double[] wData = dense.weights().data();
+            double[] wgData = dense.weightsGradient().data();
+            double[] mWData = mW.get(idxCapture);
+
+            for (int i = 0; i &lt; wLen; i++) {
+                double g = wgData[i];
+                mWData[i] = beta1 * mWData[i]
+                    + (1 - beta1) * g;
+                // ... Adam update ...
+                wData[i] -= effectiveLr
+                    * mHat / (Math.sqrt(vHat) + epsilon);
+            }
+            <span class="diff-add">dense.invalidateTranspose();</span>
+            idx++;
+        }
+    }
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> <span class="inline-code">NullPointerException</span> when
+    network contained any layers between DenseLayers that didn't produce gradients.
+    Also added <span class="inline-code">invalidateTranspose()</span> after every weight
+    update to keep the cached transpose in sync.
+  </div>
+</div>
+
+<!-- ==================== BUG 6 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity critical">CRITICAL</span>
+    <span class="bug-title">Bug #6: Softmax Backward Computes Jacobian When It Should Pass Through</span>
+  </div>
+  <div class="bug-file">ml.activation.Softmax &amp; ml.loss.CrossEntropyLoss</div>
+
+  <p>The <span class="inline-code">CrossEntropyLoss.backward()</span> already computes the
+  combined softmax+CE gradient: <span class="inline-code">(predictions - one_hot) / N</span>.
+  This is the standard fused approach used by TensorFlow, PyTorch, etc. The Softmax backward
+  should be a no-op (pass-through). But the original Softmax computed the full Jacobian
+  matrix and multiplied it into the already-correct gradient &mdash; destroying the signal.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN &mdash; Softmax.backward()</div>
+<pre><code class="language-java">public class Softmax extends ActivationLayer {
+
+    <span class="diff-cmt">// Forward is fine &mdash; numerically stable</span>
+    @Override
+    protected Tensor computeForward(Tensor input) {
+        int rows = input.rows();
+        int cols = input.cols();
+        Tensor output = new Tensor(rows, cols);
+        for (int i = 0; i &lt; rows; i++) {
+            double max = Double.NEGATIVE_INFINITY;
+            for (int j = 0; j &lt; cols; j++)
+                max = Math.max(max, input.get(i,j));
+            double sum = 0;
+            for (int j = 0; j &lt; cols; j++) {
+                double e = Math.exp(input.get(i,j) - max);
+                output.set(i, j, e);
+                sum += e;
+            }
+            for (int j = 0; j &lt; cols; j++)
+                output.set(i, j,
+                    output.get(i,j) / sum);
+        }
+        return output;
+    }
+
+    <span class="diff-del">// WRONG: Full Jacobian computation</span>
+    <span class="diff-del">// When CE loss already computed (p - y)/N</span>
+    <span class="diff-del">// This multiplies it by the Jacobian again</span>
+    @Override
+    public Tensor backward(Tensor gradient) {
+        <span class="diff-del">Tensor output = forward(lastInput);</span>
+        <span class="diff-del">int rows = gradient.rows();</span>
+        <span class="diff-del">int cols = gradient.cols();</span>
+        <span class="diff-del">Tensor result = new Tensor(rows, cols);</span>
+        <span class="diff-del">for (int i = 0; i &lt; rows; i++) {</span>
+        <span class="diff-del">    for (int j = 0; j &lt; cols; j++) {</span>
+        <span class="diff-del">        double sum = 0;</span>
+        <span class="diff-del">        for (int k = 0; k &lt; cols; k++) {</span>
+        <span class="diff-del">            double jac = (j == k ? 1 : 0)</span>
+        <span class="diff-del">                - output.get(i, k);</span>
+        <span class="diff-del">            sum += gradient.get(i, k)</span>
+        <span class="diff-del">                * output.get(i, k) * jac;</span>
+        <span class="diff-del">        }</span>
+        <span class="diff-del">        result.set(i, j, sum);</span>
+        <span class="diff-del">    }</span>
+        <span class="diff-del">}</span>
+        <span class="diff-del">return result;</span>
+    }
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">public class Softmax extends ActivationLayer {
+
+    <span class="diff-cmt">// Forward unchanged</span>
+    @Override
+    protected Tensor computeForward(Tensor input) {
+        int rows = input.rows();
+        int cols = input.cols();
+        Tensor output = new Tensor(rows, cols);
+        for (int i = 0; i &lt; rows; i++) {
+            double max = Double.NEGATIVE_INFINITY;
+            for (int j = 0; j &lt; cols; j++)
+                max = Math.max(max, input.get(i,j));
+            double sum = 0;
+            for (int j = 0; j &lt; cols; j++) {
+                double e = Math.exp(input.get(i,j) - max);
+                output.set(i, j, e);
+                sum += e;
+            }
+            for (int j = 0; j &lt; cols; j++)
+                output.set(i, j,
+                    output.get(i,j) / sum);
+        }
+        return output;
+    }
+
+    <span class="diff-add">// CORRECT: Pass-through</span>
+    <span class="diff-add">// CrossEntropyLoss.backward() already computed</span>
+    <span class="diff-add">// the combined gradient (p - y) / batchSize</span>
+    <span class="diff-add">// Applying the Jacobian again kills the signal</span>
+    @Override
+    public Tensor backward(Tensor gradient) {
+        <span class="diff-add">return gradient;</span>
+    }
+}</code></pre>
+    </div>
+  </div>
+
+  <p><strong>The math:</strong></p>
+<pre><code class="language-java"><span class="diff-cmt">// CrossEntropyLoss.backward() computes:
+//   grad[i][labels[i]] = (softmax(logits)[labels[i]] - 1) / batchSize
+//   grad[i][other]      = softmax(logits)[other] / batchSize
+//
+// This IS the combined d(CE)/d(logits) via the chain rule.
+// If Softmax.backward() also applies d(softmax)/d(logits),
+// we get:  grad * J * J  (double-applied Jacobian)
+// Result: gradients collapse to near-zero.</span></code></pre>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Model output was uniform (~10% per class for 10-class MNIST).
+    Loss barely moved. Accuracy stuck at 10% = random chance for 10 classes.
+    This was the single most damaging bug in the project.
+  </div>
+</div>
+
+<!-- ==================== BUG 7 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity critical">CRITICAL</span>
+    <span class="bug-title">Bug #7: DataLoader Shuffles Labels But Not Images</span>
+  </div>
+  <div class="bug-file">ml.training.DataLoader.BatchIterator &mdash; next()</div>
+
+  <p>The <span class="inline-code">indices[]</span> array was shuffled via Fisher-Yates.
+  Labels were indexed via <span class="inline-code">labels[indices[start+i]]</span> (correct).
+  But images were fetched via <span class="inline-code">images.sliceRows(start, end)</span>
+  which always reads sequential rows, ignoring the shuffled indices entirely.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN</div>
+<pre><code class="language-java">public Batch next() {
+    int start = pos;
+    int end = Math.min(pos + batchSize,
+        images.rows());
+    pos = end;
+    int count = end - start;
+    int cols = images.cols();
+    double[] buf = new double[count * cols];
+
+    <span class="diff-del">// BUG: sliceRows ignores shuffled indices!</span>
+    <span class="diff-del">// Always reads rows [start..end) sequentially</span>
+    <span class="diff-del">Tensor batchImages =
+        images.sliceRows(start, end);</span>
+
+    int[] batchLabels = new int[count];
+    for (int i = 0; i &lt; count; i++) {
+        <span class="diff-cmt">// Labels ARE shuffled correctly:</span>
+        <span class="diff-cmt">// labels[42] goes with images[start+0]</span>
+        <span class="diff-cmt">// But images[start+0] is image #0, not #42!</span>
+        <span class="diff-del">batchLabels[i] =
+            labels[indices[start + i]];</span>
+    }
+    <span class="diff-cmt">// Result: label "4" (shirt) paired with
+    // image #0 (which might be a shoe)</span>
+    return new Batch(batchImages, batchLabels);
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">public Batch next() {
+    int start = pos;
+    int end = Math.min(pos + batchSize,
+        images.rows());
+    pos = end;
+    int count = end - start;
+    int cols = images.cols();
+    double[] buf = new double[count * cols];
+
+    <span class="diff-add">// FIXED: gather each row by shuffled index</span>
+    <span class="diff-add">int[] batchLabels = new int[count];</span>
+    <span class="diff-add">for (int i = 0; i &lt; count; i++) {</span>
+        <span class="diff-add">int idx = indices[start + i];</span>
+        <span class="diff-add">// Copy row `idx` from images into buf row i</span>
+        <span class="diff-add">System.arraycopy(</span>
+            <span class="diff-add">images.data(),   // source: full image array</span>
+            <span class="diff-add">idx * cols,       // offset: row idx starts here</span>
+            <span class="diff-add">buf,              // dest: batch buffer</span>
+            <span class="diff-add">i * cols,         // offset: row i in buffer</span>
+            <span class="diff-add">cols);            // length: one full row</span>
+        <span class="diff-add">batchLabels[i] = labels[idx];</span>
+    <span class="diff-add">}</span>
+    <span class="diff-add">Tensor batchImages =
+        Tensor.fromFlat(buf, count, cols);</span>
+    return new Batch(batchImages, batchLabels);
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="callout danger">
+    <strong>How we found this:</strong> We wrote a debug test that alternated between
+    fixed-index batches (always batch 0, 1, 2, ...) and DataLoader batches.
+    Fixed-index batches gave 86% accuracy. DataLoader batches gave 10%.
+    Same model, same weights, same code &mdash; only the data source differed.
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Model trained for 15 epochs and stayed at 10% accuracy
+    (random chance). The model was actually learning &mdash; but from mismatched data-label
+    pairs. The gradients were correct for the wrong inputs.
+  </div>
+</div>
+
+<!-- ==================== BUG 8 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity high">HIGH</span>
+    <span class="bug-title">Bug #8: DenseLayer Parallel Backward Race Condition</span>
+  </div>
+  <div class="bug-file">ml.layer.DenseLayer &mdash; backward() parallel path</div>
+
+  <p>With ceiling division, <span class="inline-code">numTasks = (batchSize + chunk - 1) / chunk</span>
+  can exceed <span class="inline-code">threads</span>. The original code sized partial gradient
+  arrays to <span class="inline-code">[threads]</span> and used
+  <span class="inline-code">t % threads</span> to index them. Two tasks mapped to the same
+  accumulator &mdash; a data race producing corrupted weight gradients.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN</div>
+<pre><code class="language-java">// Backward parallel path
+int threads = ThreadPoolManager.parallelism();
+int chunk = Math.max(1, batchSize / threads);
+int numTasks = (batchSize + chunk - 1) / chunk;
+
+<span class="diff-del">// BUG: sized for threads, not numTasks</span>
+<span class="diff-del">double[][] partialDW =
+    new double[threads][totalWeightGrad];</span>
+<span class="diff-del">double[][] partialDB =
+    new double[threads][outSize];</span>
+CompletableFuture&lt;?&gt;[] futures =
+    new CompletableFuture[numTasks];
+
+for (int t = 0; t &lt; numTasks; t++) {
+    int from = t * chunk;
+    int to = Math.min(from + chunk, batchSize);
+    <span class="diff-del">final int taskId = t % threads;</span>
+    futures[t] = CompletableFuture.runAsync(() -&gt; {
+        double[] gradData = gradient.data();
+        double[] inData = lastInput.data();
+        <span class="diff-del">double[] pdw = partialDW[taskId];</span>
+        <span class="diff-del">double[] pdb = partialDB[taskId];</span>
+        <span class="diff-cmt">// Two tasks with same taskId write
+        // to the same pdw[] and pdb[] arrays
+        // simultaneously &mdash; DATA RACE!</span>
+        for (int b = from; b &lt; to; b++) {
+            for (int oi = 0; oi &lt; outSize; oi++) {
+                double gv = gradData[b*outSize + oi];
+                pdb[oi] += gv;
+                for (int ii = 0; ii &lt; inSize; ii++) {
+                    pdw[oi*inSize + ii] +=
+                        gv * inData[b*inSize + ii];
+                }
+            }
+        }
+    }, pool);
+}
+CompletableFuture.allOf(futures).join();
+
+<span class="diff-cmt">// Example: batchSize=100, threads=8</span>
+<span class="diff-cmt">// chunk=12, numTasks=9</span>
+<span class="diff-cmt">// Task 0 &rarr; partialDW[0], Task 8 &rarr; partialDW[0]</span>
+<span class="diff-cmt">// Both write to the same array!</span></code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">// Backward parallel path
+int threads = ThreadPoolManager.parallelism();
+int chunk = Math.max(1, batchSize / threads);
+int numTasks = (batchSize + chunk - 1) / chunk;
+
+<span class="diff-add">// CORRECT: sized for numTasks</span>
+<span class="diff-add">double[][] partialDW =
+    new double[numTasks][totalWeightGrad];</span>
+<span class="diff-add">double[][] partialDB =
+    new double[numTasks][outSize];</span>
+CompletableFuture&lt;?&gt;[] futures =
+    new CompletableFuture[numTasks];
+
+for (int t = 0; t &lt; numTasks; t++) {
+    int from = t * chunk;
+    int to = Math.min(from + chunk, batchSize);
+    <span class="diff-add">final int taskIdx = t;</span>
+    futures[t] = CompletableFuture.runAsync(() -&gt; {
+        double[] gradData = gradient.data();
+        double[] inData = lastInput.data();
+        <span class="diff-add">double[] pdw = partialDW[taskIdx];</span>
+        <span class="diff-add">double[] pdb = partialDB[taskIdx];</span>
+        <span class="diff-cmt">// Each task has its own accumulator
+        // No contention, no race</span>
+        for (int b = from; b &lt; to; b++) {
+            for (int oi = 0; oi &lt; outSize; oi++) {
+                double gv = gradData[b*outSize + oi];
+                pdb[oi] += gv;
+                for (int ii = 0; ii &lt; inSize; ii++) {
+                    pdw[oi*inSize + ii] +=
+                        gv * inData[b*inSize + ii];
+                }
+            }
+        }
+    }, pool);
+}
+CompletableFuture.allOf(futures).join();
+
+<span class="diff-cmt">// Now: Task 0 &rarr; partialDW[0], Task 8 &rarr; partialDW[8]</span>
+<span class="diff-cmt">// Each task writes to a unique array</span></code></pre>
+    </div>
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Non-deterministic training. Loss would occasionally explode
+    or oscillate wildly. Only happened when batch size wasn't evenly divisible by thread
+    count (e.g., batch 100 with 8 threads = 9 tasks, not 8).
+  </div>
+</div>
+
+<!-- ==================== BUG 9 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity high">HIGH</span>
+    <span class="bug-title">Bug #9: Tensor.sumCols() Parallel Race Condition</span>
+  </div>
+  <div class="bug-file">ml.core.Tensor &mdash; sumCols()</div>
+
+  <p>Same root cause as Bug #8. <span class="inline-code">sumCols()</span> is called by
+  <span class="inline-code">DenseLayer.backward()</span> for bias gradients and by
+  <span class="inline-code">BatchNorm</span> for running statistics. The local accumulator
+  used <span class="inline-code">t % threads</span> instead of a 1:1 task-to-slot mapping.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN</div>
+<pre><code class="language-java">public Tensor sumCols() {
+    Tensor result = new Tensor(1, cols);
+    double[] out = result.data;
+    int len = data.length;
+    if (len &lt;= PARALLEL_THRESHOLD) {
+        for (int i = 0; i &lt; rows; i++)
+            for (int j = 0; j &lt; cols; j++)
+                out[j] += data[i * cols + j];
+    } else {
+        ExecutorService pool =
+            ThreadPoolManager.compute();
+        int chunk = Math.max(1, rows
+            / ThreadPoolManager.parallelism());
+        int numFutures =
+            (rows + chunk - 1) / chunk;
+        double[][] localSums =
+            new double[numFutures][cols];
+        CompletableFuture&lt;?&gt;[] futures =
+            new CompletableFuture[numFutures];
+        for (int t = 0; t &lt; numFutures; t++) {
+            int from = t * chunk;
+            int to = Math.min(from + chunk, rows);
+            <span class="diff-del">final int taskId = t % threads;</span>
+            <span class="diff-cmt">// When numFutures &gt; threads,
+            // two tasks share one accumulator</span>
+            futures[t] = CompletableFuture
+                .runAsync(() -&gt; {
+                <span class="diff-del">double[] acc = localSums[taskId];</span>
+                for (int i = from; i &lt; to; i++)
+                    for (int j = 0; j &lt; cols; j++)
+                        acc[j] += data[i*cols+j];
+            }, pool);
+        }
+        CompletableFuture.allOf(futures).join();
+        for (int p = 0; p &lt; numFutures; p++)
+            for (int j = 0; j &lt; cols; j++)
+                out[j] += localSums[p][j];
+    }
+    return result;
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">public Tensor sumCols() {
+    Tensor result = new Tensor(1, cols);
+    double[] out = result.data;
+    int len = data.length;
+    if (len &lt;= PARALLEL_THRESHOLD) {
+        for (int i = 0; i &lt; rows; i++)
+            for (int j = 0; j &lt; cols; j++)
+                out[j] += data[i * cols + j];
+    } else {
+        ExecutorService pool =
+            ThreadPoolManager.compute();
+        int chunk = Math.max(1, rows
+            / ThreadPoolManager.parallelism());
+        int numFutures =
+            (rows + chunk - 1) / chunk;
+        double[][] localSums =
+            new double[numFutures][cols];
+        CompletableFuture&lt;?&gt;[] futures =
+            new CompletableFuture[numFutures];
+        for (int t = 0; t &lt; numFutures; t++) {
+            int from = t * chunk;
+            int to = Math.min(from + chunk, rows);
+            <span class="diff-add">final int taskIdx = t;</span>
+            <span class="diff-add">// 1:1 mapping &mdash; each task gets
+            // its own accumulator slot</span>
+            futures[t] = CompletableFuture
+                .runAsync(() -&gt; {
+                <span class="diff-add">double[] acc = localSums[taskIdx];</span>
+                for (int i = from; i &lt; to; i++)
+                    for (int j = 0; j &lt; cols; j++)
+                        acc[j] += data[i*cols+j];
+            }, pool);
+        }
+        CompletableFuture.allOf(futures).join();
+        for (int p = 0; p &lt; numFutures; p++)
+            for (int j = 0; j &lt; cols; j++)
+                out[j] += localSums[p][j];
+    }
+    return result;
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Corrupted bias gradients in DenseLayer. BatchNorm running
+    statistics drifted from expected values. Same non-deterministic training failure as Bug #8.
+  </div>
+</div>
+
+<!-- ==================== BUG 10 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity high">HIGH</span>
+    <span class="bug-title">Bug #10: FileWriter Not Closed &mdash; JSON Silently Truncated</span>
+  </div>
+  <div class="bug-file">ml.network.ModelSerializer &mdash; saveJson()</div>
+
+  <p><span class="inline-code">new FileWriter(filepath).write(data)</span> without
+  <span class="inline-code">close()</span> leaves data in the writer's internal buffer.
+  Java's default <span class="inline-code">FileWriter</span> buffer is 8KB. For a 2.2MB
+  model JSON, only the first ~8KB was flushed. The remaining 99.6% was silently lost.
+  No exception, no warning &mdash; just a truncated file.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN</div>
+<pre><code class="language-java">public static void saveJson(
+        NeuralNetwork net, String filepath)
+        throws ModelIOException {
+    StringBuilder sb = new StringBuilder();
+    sb.append("{\n  \"format\": \"mnist-dl/1.0\",\n");
+    sb.append("  \"layers\": [\n");
+    List&lt;Layer&gt; layers = net.getLayers();
+    for (int i = 0; i &lt; layers.size(); i++) {
+        sb.append("    ");
+        layerToJson(sb, layers.get(i));
+        if (i &lt; layers.size() - 1) sb.append(",");
+        sb.append("\n");
+    }
+    sb.append("  ]\n}\n");
+    <span class="diff-cmt">// sb.toString() is 2.2MB for a 4-layer model</span>
+    try {
+        File file = new File(filepath);
+        if (file.getParentFile() != null)
+            file.getParentFile().mkdirs();
+        <span class="diff-del">// BUG: FileWriter never closed!</span>
+        <span class="diff-del">// The 8KB buffer is never flushed</span>
+        <span class="diff-del">new FileWriter(filepath).write(sb.toString());</span>
+        <span class="diff-cmt">// Result on disk: only first ~8KB of JSON
+        // Layers 3 and 4 are missing
+        // Closing bracket ] } is missing</span>
+    } catch (IOException e) {
+        throw new ModelIOException(
+            "Failed to write JSON: " + e.getMessage(), e);
+    }
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">public static void saveJson(
+        NeuralNetwork net, String filepath)
+        throws ModelIOException {
+    StringBuilder sb = new StringBuilder();
+    sb.append("{\n  \"format\": \"mnist-dl/1.0\",\n");
+    sb.append("  \"layers\": [\n");
+    List&lt;Layer&gt; layers = net.getLayers();
+    for (int i = 0; i &lt; layers.size(); i++) {
+        sb.append("    ");
+        layerToJson(sb, layers.get(i));
+        if (i &lt; layers.size() - 1) sb.append(",");
+        sb.append("\n");
+    }
+    sb.append("  ]\n}\n");
+    try {
+        File file = new File(filepath);
+        if (file.getParentFile() != null)
+            file.getParentFile().mkdirs();
+        <span class="diff-add">// try-with-resources guarantees close()</span>
+        <span class="diff-add">try (FileWriter fw = new FileWriter(filepath)) {</span>
+            <span class="diff-add">fw.write(sb.toString());</span>
+        <span class="diff-add">}</span>
+        <span class="diff-cmt">// close() flushes all buffers to disk
+        // Full 2.2MB written correctly</span>
+    } catch (IOException e) {
+        throw new ModelIOException(
+            "Failed to write JSON: " + e.getMessage(), e);
+    }
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="callout danger">
+    <strong>Verification:</strong> We checked the file size (2.2MB) and the JSON structure.
+    The file was physically 2.2MB on disk, but the <span class="inline-code">loadJson()</span>
+    parser only found 2 of 4 layer objects. The parser was correct &mdash; the file really
+    was truncated. The FileWriter wrote the buffer on <span class="inline-code">write()</span>
+    but the final flush to disk never happened.
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> JSON file had 6 lines instead of 9. Loading returned 2 layers
+    instead of 4. Accuracy dropped to 0.01% because the second DenseLayer and Softmax
+    were missing from the JSON.
+  </div>
+</div>
+
+<!-- ==================== BUG 11 ==================== -->
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="severity critical">CRITICAL</span>
+    <span class="bug-title">Bug #11: Stale cachedTranspose After System.arraycopy Weight Load</span>
+  </div>
+  <div class="bug-file">ml.network.ModelSerializer &amp; ml.layer.DenseLayer</div>
+
+  <p>DenseLayer caches <span class="inline-code">weights.transpose()</span> to avoid
+  re-transposing every forward pass. When weights are loaded via
+  <span class="inline-code">System.arraycopy()</span> into the tensor's backing array,
+  the cached transpose still reflects the <em>original randomly-initialized</em> weights.
+  The forward pass multiplies input by the wrong transpose, producing garbage output
+  despite the actual weight data being correct.</p>
+
+  <div class="code-compare">
+    <div>
+      <div class="code-label broken">BROKEN &mdash; ModelSerializer.readLayerBinary()</div>
+<pre><code class="language-java">private static Layer readLayerBinary(
+        DataInputStream dis, String type,
+        int version) throws IOException {
+    return switch (type) {
+        case "ml.layer.DenseLayer" -> {
+            int inSize = dis.readInt();
+            int outSize = dis.readInt();
+            double[] wData = readDoubles(dis);
+            double[] bData = readDoubles(dis);
+            DenseLayer d = new DenseLayer(
+                inSize, outSize);
+            <span class="diff-cmt">// Constructor creates:
+            //   d.weights = Tensor.he(outSize, inSize)
+            //   d.cachedTranspose = d.weights.transpose()
+            //                     ^^^ random init transpose</span>
+
+            <span class="diff-cmt">// Now overwrite the weight data in-place:</span>
+            System.arraycopy(wData, 0,
+                d.weights().data(), 0, wData.length);
+            System.arraycopy(bData, 0,
+                d.bias().data(), 0, bData.length);
+
+            <span class="diff-cmt">// BUG: cachedTranspose still holds the
+            // transpose of the RANDOM weights!</span>
+            <span class="diff-del">// d.cachedTranspose is NOT updated</span>
+            <span class="diff-cmt">// because System.arraycopy() bypassed
+            // the normal weight update path</span>
+            yield d;
+        }
+        // ...
+    };
+}</code></pre>
+    </div>
+    <div>
+      <div class="code-label fixed">FIXED</div>
+<pre><code class="language-java">private static Layer readLayerBinary(
+        DataInputStream dis, String type,
+        int version) throws IOException {
+    return switch (type) {
+        case "ml.layer.DenseLayer" -> {
+            int inSize = dis.readInt();
+            int outSize = dis.readInt();
+            double[] wData = readDoubles(dis);
+            double[] bData = readDoubles(dis);
+            DenseLayer d = new DenseLayer(
+                inSize, outSize);
+
+            System.arraycopy(wData, 0,
+                d.weights().data(), 0, wData.length);
+            System.arraycopy(bData, 0,
+                d.bias().data(), 0, bData.length);
+
+            <span class="diff-add">// FIX: invalidate the stale cache</span>
+            <span class="diff-add">// Next forward() call will recompute
+            // cachedTranspose from the loaded weights</span>
+            <span class="diff-add">d.invalidateTranspose();</span>
+            yield d;
+        }
+        // ...
+    };
+}</code></pre>
+    </div>
+  </div>
+
+  <p>The same fix was applied to the JSON load path:</p>
+<pre><code class="language-java"><span class="diff-cmt">// JSON load path &mdash; also needed fixing:</span>
+case "ml.layer.DenseLayer" -> {
+    int in = extractInt(lj, "inputSize");
+    int out = extractInt(lj, "outputSize");
+    DenseLayer d = new DenseLayer(in, out);
+    double[] w = extractDoubles(lj, "weights");
+    double[] b = extractDoubles(lj, "bias");
+    if (w != null) System.arraycopy(w, 0,
+        d.weights().data(), 0,
+        Math.min(w.length, d.weights().size()));
+    if (b != null) System.arraycopy(b, 0,
+        d.bias().data(), 0,
+        Math.min(b.length, d.bias().size()));
+    <span class="diff-add">d.invalidateTranspose();</span>  <span class="diff-cmt">// &mdash;&mdash; same fix</span>
+    yield d;
+}</code></pre>
+
+  <div class="callout danger">
+    <strong>This was the hardest bug to find in the entire project.</strong> We verified:
+    <br>&bull; Weights printed identically before save and after load &mdash; <span class="inline-code">W0[0..4]</span> matched exactly
+    <br>&bull; All 4 layers were present with correct shapes
+    <br>&bull; Forward pass ran without errors
+    <br>&bull; But accuracy was 12% instead of 84%
+    <br><br>The breakthrough came from printing <span class="inline-code">cachedTranspose</span> values
+    and discovering they still held the transpose of the random init weights.
+  </div>
+
+  <div class="effect">
+    <strong>Symptom:</strong> Binary load: weights match exactly, 4 layers loaded, but
+    accuracy drops from 84% to 12% (near random). JSON load: truncated file (Bug #10)
+    masked this bug entirely. After fixing both: 84.59% before save, 84.59% after binary,
+    84.59% after JSON.
+  </div>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2><span class="num">02</span> &mdash; Speed Optimizations</h2>
+
+<table>
+  <tr><th>Optimization</th><th>Where</th><th>Impact</th></tr>
+  <tr><td>Parallel matmul via row chunking</td><td>Tensor.matmul()</td><td>~3x on large matrices</td></tr>
+  <tr><td>Parallel element-wise operations</td><td>Tensor add/sub/mul/div</td><td>~2x on large tensors</td></tr>
+  <tr><td>Parallel tensor factories</td><td>Tensor.filled/random/randomNormal</td><td>~2x on large tensors</td></tr>
+  <tr><td>Parallel reductions (sum/max/min)</td><td>Tensor.sum()/max()/min()</td><td>~2x on large tensors</td></tr>
+  <tr><td>Centralized thread pool</td><td>ThreadPoolManager</td><td>Thread reuse, no spawn overhead</td></tr>
+  <tr><td>Cached transpose in DenseLayer</td><td>DenseLayer.forward()</td><td>Eliminated per-batch transpose alloc</td></tr>
+  <tr><td>Parallel Adam optimizer</td><td>Adam.step()</td><td>~1.5x on weight update</td></tr>
+  <tr><td>Softmax pass-through backward</td><td>Softmax.backward()</td><td>Eliminated O(N*C*C) Jacobian</td></tr>
+  <tr><td>Optimized CrossEntropyLoss.backward()</td><td>CrossEntropyLoss</td><td>In-place gradient, fewer allocs</td></tr>
+</table>
+
+<hr>
+
+<h3><span class="num">OPT-1</span> Parallel Matrix Multiplication</h3>
+
+<p>The single biggest optimization. <span class="inline-code">Tensor.matmul()</span> splits
+output rows across threads using <span class="inline-code">CompletableFuture</span>.</p>
+
+<div class="code-compare">
+  <div>
+    <div class="code-label broken">SEQUENTIAL</div>
+<pre><code class="language-java">public static Tensor matmul(Tensor a, Tensor b) {
+    int m = a.rows(), n = b.cols(), k = a.cols();
+    Tensor result = new Tensor(m, n);
+    <span class="diff-del">// All M rows computed on one thread</span>
+    for (int i = 0; i &lt; m; i++) {
+        int ci = i * n;
+        for (int p = 0; p &lt; k; p++) {
+            double aVal = a.data()[i*k + p];
+            int bp = p * n;
+            for (int j = 0; j &lt; n; j++) {
+                result.data()[ci+j] +=
+                    aVal * b.data()[bp+j];
+            }
+        }
+    }
+    return result;
+}</code></pre>
+  </div>
+  <div>
+    <div class="code-label fixed">PARALLEL</div>
+<pre><code class="language-java">public static Tensor matmul(Tensor a, Tensor b) {
+    int m = a.rows(), n = b.cols(), k = a.cols();
+    Tensor result = new Tensor(m, n);
+    long ops = (long) m * n * k;
+    <span class="diff-add">if (ops &lt;= MATMUL_PARALLEL_OPS) {</span>
+        <span class="diff-add">matmulSequential(a.data(), b.data(),
+            result.data(), m, n, k, 0, m);</span>
+    <span class="diff-add">} else {</span>
+        <span class="diff-add">ExecutorService pool =
+            ThreadPoolManager.compute();</span>
+        <span class="diff-add">int threads =
+            ThreadPoolManager.computePoolSize();</span>
+        <span class="diff-add">int chunk = Math.max(1, m / threads);</span>
+        <span class="diff-add">CompletableFuture[] futures =
+            new CompletableFuture
+                [(m+chunk-1)/chunk];</span>
+        <span class="diff-add">for (int t = 0; t &lt; futures.length; t++) {
+            int from = t * chunk;
+            int to = Math.min(from+chunk, m);
+            futures[t] = CompletableFuture
+                .runAsync(() -&gt;
+                    matmulSequential(a.data(),
+                        b.data(), result.data(),
+                        m, n, k, from, to),
+                    pool);
+        }</span>
+        <span class="diff-add">CompletableFuture.allOf(futures).join();</span>
+    <span class="diff-add">}</span>
+    return result;
+}</code></pre>
+  </div>
+</div>
+
+<hr>
+
+<h3><span class="num">OPT-2</span> Centralized Thread Pool (ThreadPoolManager)</h3>
+
+<pre><code class="language-java"><span class="diff-cmt">// Singleton pool shared across all operations:</span>
+public static ExecutorService compute() {
+    if (computePool == null || computePool.isShutdown()) {
+        computePool = new ThreadPoolExecutor(
+            DEFAULT_CORE,            <span class="diff-cmt">// core = availableProcessors()</span>
+            MAX_THREADS,             <span class="diff-cmt">// max  = 2 * processors</span>
+            60_000L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue&lt;&gt;(1024),
+            threadFactory,
+            new CallerRunsPolicy()  <span class="diff-cmt">// fallback if pool full</span>
+        );
+    }
+    return computePool;
+}
+
+<span class="diff-cmt">// Every parallel operation uses this pool:</span>
+ExecutorService pool = ThreadPoolManager.compute();
+
+<span class="diff-cmt">// Simple parallel-for pattern:</span>
+ThreadPoolManager.parallelFor(0, wLen, i -&gt; {
+    wData[i] -= lr * gradData[i];
+});</code></pre>
+
+<hr>
+
+<h3><span class="num">OPT-3</span> Cached Transpose in DenseLayer</h3>
+
+<pre><code class="language-java"><span class="diff-cmt">// Avoid re-transposing weights every forward pass</span>
+private Tensor cachedTranspose;
+
+public void invalidateTranspose() {
+    this.cachedTranspose = null;
+}
+
+private Tensor getCachedTranspose() {
+    if (cachedTranspose == null)
+        cachedTranspose = weights.transpose();
+    return cachedTranspose;
+}
+
+@Override
+public Tensor forward(Tensor input, boolean training) {
+    this.lastInput = input;
+    <span class="diff-add">// Reuses cached transpose instead of allocating</span>
+    Tensor output = Tensor.matmul(input, getCachedTranspose());
+    // ... bias addition ...
+    return output;
+}
+
+@Override
+public void update(double learningRate) {
+    // ... weight update ...
+    <span class="diff-add">invalidateTranspose();</span>  // must invalidate!
+}</code></pre>
+
+<hr>
+
+<h3><span class="num">OPT-4</span> CrossEntropyLoss Backward &mdash; In-Place Optimization</h3>
+
+<div class="code-compare">
+  <div>
+    <div class="code-label broken">ORIGINAL</div>
+<pre><code class="language-java">public Tensor backward(
+        Tensor predictions, int[] labels) {
+    int batchSize = labels.length;
+    int classes = predictions.cols();
+    Tensor grad = new Tensor(batchSize, classes);
+    <span class="diff-del">// Separate copy + subtraction loop</span>
+    for (int i = 0; i &lt; batchSize; i++) {
+        for (int j = 0; j &lt; classes; j++) {
+            double p = predictions.get(i, j);
+            if (j == labels[i])
+                grad.set(i, j,
+                    (p - 1.0) / batchSize);
+            else
+                grad.set(i, j, p / batchSize);
+        }
+    }
+    return grad;
+}</code></pre>
+  </div>
+  <div>
+    <div class="code-label fixed">OPTIMIZED</div>
+<pre><code class="language-java">public Tensor backward(
+        Tensor predictions, int[] labels) {
+    int batchSize = labels.length;
+    int classes = predictions.cols();
+    double scale = 1.0 / batchSize;
+    Tensor grad = new Tensor(batchSize, classes);
+    double[] pd = predictions.data();
+    double[] gd = grad.data();
+    <span class="diff-add">// Single copy via System.arraycopy</span>
+    <span class="diff-add">System.arraycopy(pd, 0, gd, 0, pd.length);</span>
+    <span class="diff-add">// Subtract 1.0 from the correct class only</span>
+    for (int i = 0; i &lt; batchSize; i++) {
+        <span class="diff-add">gd[i * classes + labels[i]] -= 1.0;</span>
+    }
+    <span class="diff-add">// Scale all at once</span>
+    for (int i = 0; i &lt; gd.length; i++)
+        <span class="diff-add">gd[i] *= scale;</span>
+    return grad;
+}</code></pre>
+  </div>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2><span class="num">03</span> &mdash; What We Learned</h2>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h4 style="color: var(--red)">Math Bugs Are Silent</h4>
+    <p style="color: var(--text-dim)"><span class="inline-code">sumRows()</span> vs
+    <span class="inline-code">sumCols()</span> didn't crash &mdash; it produced a tensor
+    with the right data type and non-zero values. The model just never learned.
+    Always verify with a numerical gradient check.</p>
+  </div>
+  <div class="summary-card">
+    <h4 style="color: var(--yellow)">Race Conditions Are Non-Deterministic</h4>
+    <p style="color: var(--text-dim)">Bugs #8 and #9 only appeared when batch size
+    wasn't divisible by thread count. With 8 threads and batch 128, no issue. With
+    batch 100, corruption. Use <span class="inline-code">numTasks</span> not
+    <span class="inline-code">threads</span> for accumulator sizing.</p>
+  </div>
+  <div class="summary-card">
+    <h4 style="color: var(--orange)">External Mutation Breaks Caches</h4>
+    <p style="color: var(--text-dim)"><span class="inline-code">System.arraycopy</span>
+    into a tensor's backing array bypasses all layer logic. Any cached state derived
+    from that array becomes stale. Every code path that writes to weights must
+    invalidate caches.</p>
+  </div>
+  <div class="summary-card">
+    <h4 style="color: var(--green)">I/O Without Close() Is Silent Loss</h4>
+    <p style="color: var(--text-dim)">Java's <span class="inline-code">FileWriter</span>
+    buffers silently. No exception, no warning &mdash; just truncated data. Always
+    use <span class="inline-code">try-with-resources</span>.</p>
+  </div>
+  <div class="summary-card">
+    <h4 style="color: var(--accent)">Parallel != Always Faster</h4>
+    <p style="color: var(--text-dim)">CompletableFuture overhead is 1&ndash;5ms per
+    dispatch. For under ~1M operations, sequential wins. Set a threshold and only
+    parallelize above it.</p>
+  </div>
+  <div class="summary-card">
+    <h4 style="color: var(--purple)">Data-Label Pairing Is Sacred</h4>
+    <p style="color: var(--text-dim)">The DataLoader bug (#7) shuffled labels but
+    not images. The model trained perfectly &mdash; on garbage data. Always verify
+    a few random samples visually after shuffling.</p>
+  </div>
+</div>
+
+<hr>
+<p style="text-align:center; color: var(--text-dim); margin-top: 40px;">
+  11 bugs found &amp; fixed &bull; 9 speed optimizations applied &bull;
+  7s/epoch on Fashion-MNIST &bull; 86%+ accuracy
+</p>
+
+</div>
+
+<div class="footer">
+  <p>Generated from the development of <code>mnist-dl</code> &mdash;
+  a from-scratch Java deep learning library for MNIST/Fashion-MNIST.</p>
+</div>
+
+</body>
+</html>

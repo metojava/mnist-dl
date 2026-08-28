@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>20 · LLMs - mnist-dl Handbook</title><link rel="stylesheet" href="style.css">
+<style>
+.chart{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:12px;overflow:auto}
+.formula{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:14px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.5;overflow:auto}
+.formula b{color:#4f46e5}
+.svg-wrap{background:#ffffff;border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;justify-content:center;overflow:auto}
+</style>
+</head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 · Java 17 · Book</div>
+<h1 style="font-size:30px">20 · LLMs</h1><p class="lead" style="font-size:15px">How to build a decoder-only LLM from Embedding + TransformerBlock — runnable mini-GPT</p></div></div></header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="active">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="active">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">All code 17px · Charts are inline SVG · Offline ready</div></nav>
+<main class="content">
+<section class="card">
+<div class="eyebrow">Capstone · LLM</div>
+<h2>20 · LLMs — Build a Mini-GPT with mnist-dl</h2>
+<p class="muted">Library has all primitives for a decoder-only LLM: <code>Embedding</code> + <code>TransformerBlock</code> stack + <code>LayerNorm</code> + <code>Dense(V)</code> + <code>CrossEntropy</code>. This page maps LLM concepts to runnable code in this codebase.</p>
+
+<h3>What is an LLM? (in one paragraph)</h3>
+<p>An LLM is a <b>next-token predictor</b> trained on massive text: P(next | previous tokens) via CrossEntropy. At inference it generates autoregressively. Under the hood it is just <b>Transformer decoder blocks</b> with causal attention, trained with <b>AdamW + warmupCosine + gradient clipping</b>.</p>
+
+<div class="formula">
+<b>Training objective</b>: ℒ = − Σ<sub>t</sub> log P<sub>θ</sub>(w<sub>t</sub> | w<sub>&lt;t</sub>)  (CrossEntropy)<br>
+<b>Attention (causal)</b>: softmax( QK<sup>T</sup>/√d + M )·V, &nbsp; M<sub>ij</sub> = −∞ if j>i else 0<br>
+<b>Perplexity</b> = exp(ℒ) — lower is better (random ≈ V)
+</div>
+
+<div class="svg-wrap">
+<svg width="760" height="220" viewBox="0 0 760 220"><rect width="760" height="220" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="14" y="20" font-size="12" font-weight="700" fill="#334155">Mini-GPT architecture (decoder-only)</text>
+<g font-size="11" fill="#1e293b">
+<rect x="30" y="34" width="700" height="24" rx="6" fill="#e0e7ff" stroke="#c7d2fe"/><text x="380" y="50" text-anchor="middle">Tokens → Embedding(V,d) + Positional*</text>
+<rect x="30" y="68" width="700" height="28" rx="6" fill="#fce7f3" stroke="#fbcfe8"/><text x="380" y="86" text-anchor="middle">TransformerBlock × N (e.g., 4 × 256d/4heads/ff512)</text>
+<rect x="30" y="106" width="700" height="24" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><text x="380" y="122" text-anchor="middle">LayerNorm → Dense(d → V) → Softmax → CrossEntropy</text>
+<rect x="30" y="142" width="700" height="26" rx="8" fill="#dcfce7" stroke="#bbf7d0"/><text x="380" y="160" text-anchor="middle">Generation: sample → append → slide window → repeat</text>
+</g>
+<text x="14" y="196" font-size="10" fill="#64748b">* Positional: library has no built-in PE — use learned Embedding for positions or add sinusoid via Dense; for small contexts (32-64) even without PE it learns order from attention.</text>
+</svg>
+</div>
+
+<h3>Minimal LLM in 30 lines — using only mnist-dl</h3>
+<pre><code>// === Mini-GPT: vocab 2000, d=128, 4 blocks, context 32 ===
+int V=2000, d=128, heads=4, ff=512, ctx=32, N=4;
+Embedding tokEmb = new Embedding(V, d);
+// optional learned positional embedding (library Embedding)
+Embedding posEmb = new Embedding(ctx, d);
+
+NeuralNetwork gpt = new NeuralNetwork();
+// We wrap embedding inside a custom pre-processing step:
+// input ids shape [batch, ctx] -> flatten -> we use Dense as projection starter
+// For teaching: feed already-embedded Tensor [batch, ctx*d]
+for(int i=0;i&lt;N;i++) gpt.add(new TransformerBlock(d, heads, ff));
+gpt.add(new LayerNorm(d));
+gpt.add(new DenseLayer(d, V)).add(new Softmax()); // language head
+
+// Training loop — teacher forcing, causal without explicit mask (small ctx → full attention is ok for demo)
+CrossEntropyLoss ce = new CrossEntropyLoss();
+AdamW opt = new AdamW(0.001, 0.01);
+GradientClipper clip = new GradientClipper(1.0);
+LRScheduler sched = LRScheduler.warmupCosine(0.001, 100, 5);
+for(int epoch=0; epoch&lt;50; epoch++){
+  for(Batch b: loader.iterate(ids, nextIds)){ // ids [batch, ctx]
+    // 1) embed: look up tokEmb + posEmb, flatten to [batch, ctx*d] then project via Dense? 
+    //    Simpler: use SentimentAnalyzer's bow idea for demo, or pre-embed before forward
+    Tensor x = embedBatch(b.images(), tokEmb, posEmb); // [batch, ctx*d] helper you write
+    Tensor logits = gpt.forward(x, true);   // [batch, V]
+    double loss = ce.forward(logits, b.labels());
+    Tensor grad = ce.backward(logits, b.labels());
+    gpt.backward(grad); clip.clip(gpt.getLayers()); opt.step(gpt.getLayers(), sched.step(epoch));
+  }
+}
+// Generation
+Tensor ctxIds = seedIds; // [1, ctx]
+for(int t=0; t&lt;100; t++){
+  Tensor emb = embedBatch(ctxIds, tokEmb, posEmb);
+  Tensor probs = gpt.forward(emb, false);
+  int next = sampleTopK(probs, 40, 0.9); // temperature/top-p you implement
+  ctxIds = slide(ctxIds, next); // drop oldest, append next
+}</code></pre>
+<div class="callout">Helper <code>embedBatch</code> is ~10 lines: for each token id, copy <code>tokEmb.weights().row(id)</code> + <code>posEmb.row(pos)</code>. This library has no automatic token+position sum — you write it, which is the educational point.</div>
+
+<h3>From library examples to LLM</h3>
+<table class="table">
+<tr><th>Library example</th><th>What it teaches for LLM</th><th>Upgrade path</th></tr>
+<tr><td>CharLstmGenerator P08</td><td>Autoregressive loop + sampling (temp/top-k)</td><td>Replace LSTM → TransformerBlock stack; keep same loop</td></tr>
+<tr><td>NextWordPredictor P09</td><td>Embedding + next-token CE</td><td>Add context window (32) + positional + deeper stack</td></tr>
+<tr><td>NewsTopicClassifier P10</td><td>TransformerBlock on text</td><td>Change head from 4-class to V-class LM + causal data pipeline</td></tr>
+<tr><td>SentimentAnalyzer P06</td><td>Vocab / BoW / shuffle / eval</td><td>Reuse Vocab & Proj helpers for tokenization</td></tr>
+</table>
+
+<h3>Patterns you must implement (5)</h3>
+<ol>
+<li><b>Tokenization</b>: reuse <code>Vocab</code> (word-level) or build char vocab (60 chars) for tiny LLM; real LLM uses BPE — out of scope, word-level is fine for 2k vocab.</li>
+<li><b>Positional</b>: learned <code>Embedding(ctx,d)</code> positions 0..ctx-1; sum with token embedding.</li>
+<li><b>Causal data</b>: from corpus build pairs (prefix ctx-1 → next token) by sliding window; library’s <code>DataLoader</code> shuffles them.</li>
+<li><b>Masking</b>: for strict decoder add −1e9 to future QK entries before softmax; with small ctx and full attention the model still learns causality via data order (educational shortcut).</li>
+<li><b>Sampling</b>: temperature T: logits/=T before softmax; top-k/top-p truncation — implement 20 lines on top of <code>Tensor</code>.</li>
+</ol>
+
+<div class="svg-wrap">
+<svg width="760" height="160" viewBox="0 0 760 160"><rect width="760" height="160" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="14" y="20" font-size="12" font-weight="700" fill="#334155">Training vs Generation</text>
+<g font-size="11">
+<rect x="20" y="34" width="340" height="30" rx="8" fill="#eef2ff" stroke="#4f46e5"/><text x="190" y="52" text-anchor="middle" fill="#1e1b4b">Train: teacher forcing (parallel)</text>
+<rect x="400" y="34" width="340" height="30" rx="8" fill="#fef3c7" stroke="#d97706"/><text x="570" y="52" text-anchor="middle" fill="#7c2d12">Gen: autoregressive (sequential)</text>
+<text x="30" y="82" font-size="10" fill="#334155">Input: [the cat sat] → target [cat sat on] — all positions at once</text>
+<text x="410" y="82" font-size="10" fill="#334155">Input: [the cat sat] → sample “on” → [cat sat on] → ...</text>
+<text x="190" y="102" font-size="10" fill="#64748b">CE over all positions in one forward</text>
+<text x="570" y="102" font-size="10" fill="#64748b">One forward per token, sliding window</text>
+</g>
+</svg>
+</div>
+
+<h3>Limitations of this library for real LLMs</h3>
+<ul>
+<li><b>CPU-only, double precision</b>: 100M params → ~800 MB + grads — fits but slow; real LLMs use mixed-precision GPU.</li>
+<li><b>No KV-cache, no FlashAttention</b>: generation recomputes full attention each step (educational, not production).</li>
+<li><b>No BPE tokenizer</b>: word/char level only; vocab 2–5k max before Dense(V) dominates.</li>
+<li><b>Context 32–64</b>: self-attention is O(ctx²·d); keep ctx small (library has no sparsity).</li>
+</ul>
+<div class="callout success">Even with those limits, a 2–4 block, d=128, V=2000, ctx=32 model trains in minutes on CPU and <b>already feels like a LLM</b> on a tiny corpus (TextCorpus or your own .txt). That is the educational win.</div>
+
+<h3>Next steps</h3>
+<ol>
+<li>Run <code>CharLstmGenerator</code> and <code>NextWordPredictor</code> as is.</li>
+<li>Copy the Mini-GPT snippet above into <code>examples/MiniGPT.java</code> and point it at <code>TextCorpus</code> joined into one string, windowed to 32.</li>
+<li>Add <code>17-performance.html</code> tuning: batch 32, AdamW 0.001, clip 1.0, warmup 5.</li>
+</ol>
+</section>
+</main></div>
+</body></html>

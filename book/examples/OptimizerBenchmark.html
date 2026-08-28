@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OptimizerBenchmark - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 15-examples.html</div>
+<h1 style="font-size:28px">OptimizerBenchmark</h1><p class="lead" style="font-size:15px">All 6 optimizers head-to-head</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="active">Examples</a><a href="../16-projects.html" class="">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>examples/OptimizerBenchmark.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">examples/OptimizerBenchmark.java</div><h2>OptimizerBenchmark</h2><p class="muted"><b>All 6 optimizers head-to-head</b> - Synthetic 5-class Gaussian mixture (20-D). Trains identical 20-64-32-5 + Softmax nets with SGD, SGD+mom, Adam, AdamW, RMSProp, AdaGrad for 20 epochs and prints accuracy/time.</p>
+<h3>ML principles</h3><ul><li><b>Controlled optimizer comparison</b>: same synthetic 5-class mixture (Gaussian + label shift), same net 20-64-32-5, same 20 epochs.</li><li><b>All 6 variants</b>: SGD, SGD+mom0.9, Adam, AdamW, RMSProp, AdaGrad.</li></ul>
+<pre><code>X = Tensor(2000,20) fill N(0,1)+label*0.5; y=rand 0..4
+split 80/20
+for opt in [SGD(0.01), SGD(0.01,0.9), Adam(0.001), AdamW(0.001,0.01), RMSProp(0.001), AdaGrad(0.01)]:
+  build fresh net 20-64 ReLU -64-32 ReLU -32-5 Softmax
+  trainer.fit(trainX,trainY,20,64); evaluate test acc
+</code></pre>
+<div class="callout">Expected: Adam/AdamW fastest to converge; AdaGrad slows after many steps (cache grows).</div>
+<h3>Full source - <code>src/main/java/examples/OptimizerBenchmark.java</code></h3><pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.*;
+import ml.loss.*;
+import ml.evaluation.*;
+import ml.regularization.*;
+import ml.activation.*;
+import java.util.Random;
+
+public class OptimizerBenchmark {
+    public static void main(String[] args) {
+        SeedManager.setSeed(42);
+        System.out.println(&quot;=== Optimizer Benchmark ===\n&quot;);
+
+        int samples = 2000;
+        int features = 20;
+        int classes = 5;
+        Random rng = new Random(42);
+
+        Tensor X = new Tensor(samples, features);
+        int[] y = new int[samples];
+        for (int i = 0; i &lt; samples; i++) {
+            int label = rng.nextInt(classes);
+            y[i] = label;
+            for (int j = 0; j &lt; features; j++)
+                X.data()[i * features + j] = rng.nextGaussian() + label * 0.5;
+        }
+
+        int split = (int) (samples * 0.8);
+        Tensor trainX = X.sliceRows(0, split);
+        int[] trainY = java.util.Arrays.copyOf(y, split);
+        Tensor testX = X.sliceRows(split, samples);
+        int[] testY = java.util.Arrays.copyOfRange(y, split, samples);
+
+        Optimizer[] optimizers = {
+            new SGD(0.01),
+            new SGD(0.01, 0.9),
+            new Adam(0.001),
+            new AdamW(0.001, 0.01),
+            new RMSProp(0.001),
+            new AdaGrad(0.01)
+        };
+
+        for (Optimizer opt : optimizers) {
+            System.out.println(&quot;--- &quot; + opt.getClass().getSimpleName() + &quot; ---&quot;);
+            NeuralNetwork net = new NeuralNetwork();
+            net.add(new ml.layer.DenseLayer(features, 64));
+            net.add(new ReLU());
+            net.add(new ml.layer.DenseLayer(64, 32));
+            net.add(new ReLU());
+            net.add(new ml.layer.DenseLayer(32, classes));
+            net.add(new Softmax());
+
+            CrossEntropyLoss loss = new CrossEntropyLoss();
+            Trainer trainer = new Trainer(net, loss, opt);
+            TrainingHistory history = trainer.fit(trainX, trainY, 20, 64);
+
+            Evaluator evaluator = new Evaluator();
+            EvaluationResult result = evaluator.evaluate(net, testX, testY);
+            System.out.printf(&quot;  Final loss: %.6f | Accuracy: %.2f%% | Time: %dms%n%n&quot;,
+                history.lastLoss(), result.accuracyPercentage(), history.totalTimeMs());
+        }
+    }
+}
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.OptimizerBenchmark</span></div></section></main></div>
+</body></html>

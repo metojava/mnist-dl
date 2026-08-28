@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BinaryClassificationExample - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 15-examples.html</div>
+<h1 style="font-size:28px">BinaryClassificationExample</h1><p class="lead" style="font-size:15px">Binary classifier</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="active">Examples</a><a href="../16-projects.html" class="">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>examples/BinaryClassificationExample.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">examples/BinaryClassificationExample.java</div><h2>BinaryClassificationExample</h2><p class="muted"><b>Binary classifier</b> - Synthetic 8-D Gaussian data where y = (x0+x1&gt;0). MLP 8-32-16-1 with ReLU+Dropout+Sigmoid, BCE loss, Adam, 30 epochs. Shows BCE+Sigmoid pairing and ConfusionMatrix.</p>
+<h3>ML principles</h3><ul><li><b>Synthetic data generation</b> with Gaussian features and linear decision boundary (sum of first two dims).</li><li><b>Binary head</b>: Dense(...,1) + Sigmoid vs Softmax; <b>BCE loss</b> derivation.</li><li><b>Train/test split</b> via sliceRows, ConfusionMatrix with precision/recall.</li></ul>
+<h3>Walkthrough</h3><pre><code>Tensor X = new Tensor(2000,8); // fill with rng.nextGaussian()
+y[i] = (vals[0]+vals[1]>0)?1:0; // linear boundary
+split 80/20 via sliceRows
+net = 8-32 ReLU Dropout0.1 -32-16 ReLU -16-1 Sigmoid
+loss=BinaryCrossEntropyLoss, opt=Adam(0.001)
+trainer.fit(trainX,trainY,30,64); trainer.saveTrainingChart(...)
+Evaluator("Class 0","Class 1").evaluate(...)
+</code></pre>
+<h3>Full source - <code>src/main/java/examples/BinaryClassificationExample.java</code></h3><pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.BinaryCrossEntropyLoss;
+import ml.evaluation.*;
+import ml.regularization.Dropout;
+import ml.regularization.GradientClipper;
+
+public class BinaryClassificationExample {
+    public static void main(String[] args) {
+        SeedManager.setSeed(42);
+        System.out.println(&quot;=== Binary Classification (XOR) ===\n&quot;);
+
+        int samples = 2000;
+        int features = 8;
+        Tensor X = new Tensor(samples, features);
+        int[] y = new int[samples];
+        java.util.Random rng = new java.util.Random(42);
+
+        for (int i = 0; i &lt; samples; i++) {
+            double[] vals = new double[features];
+            for (int j = 0; j &lt; features; j++) vals[j] = rng.nextGaussian();
+            System.arraycopy(vals, 0, X.data(), i * features, features);
+            y[i] = (vals[0] + vals[1] &gt; 0) ? 1 : 0;
+        }
+
+        int split = (int) (samples * 0.8);
+        Tensor trainX = X.sliceRows(0, split);
+        int[] trainY = java.util.Arrays.copyOf(y, split);
+        Tensor testX = X.sliceRows(split, samples);
+        int[] testY = java.util.Arrays.copyOfRange(y, split, samples);
+
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new ml.layer.DenseLayer(features, 32));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.regularization.Dropout(0.1));
+        network.add(new ml.layer.DenseLayer(32, 16));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.layer.DenseLayer(16, 1));
+        network.add(new ml.activation.Sigmoid());
+        System.out.println(network);
+
+        BinaryCrossEntropyLoss loss = new BinaryCrossEntropyLoss();
+        Adam optimizer = new Adam(0.001);
+        Trainer trainer = new Trainer(network, loss, optimizer);
+
+        System.out.println(&quot;Training...&quot;);
+        TrainingHistory history = trainer.fit(trainX, trainY, 30, 64);
+        trainer.saveTrainingChart(&quot;training_binary.png&quot;);
+
+        Evaluator evaluator = new Evaluator(new String[]{&quot;Class 0&quot;, &quot;Class 1&quot;});
+        EvaluationResult result = evaluator.evaluate(network, testX, testY);
+
+        System.out.println(&quot;\n&quot; + result);
+        result.confusionMatrix().print();
+        result.confusionMatrix().printClassMetrics(new String[]{&quot;Negative&quot;, &quot;Positive&quot;});
+    }
+}
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.BinaryClassificationExample</span></div></section></main></div>
+</body></html>

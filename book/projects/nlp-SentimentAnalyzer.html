@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SentimentAnalyzer - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">SentimentAnalyzer</h1><p class="lead" style="font-size:15px">NLP - BoW + MLP sentiment (pos/neg) with Dropout+WeightDecay</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/nlp-SentimentAnalyzer.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/nlp/SentimentAnalyzer.java</div><h2>SentimentAnalyzer</h2><p class="muted"><b>NLP</b> - BoW + MLP sentiment (pos/neg) with Dropout+WeightDecay</p><h3>ML principles</h3><ul><li><b>BoW MLP</b>: vocab from TextCorpus pos/neg, bowMatrix flatten, 80/20 split, Dense vocab-64 ReLU Dropout0.3 -64-2 Softmax.</li><li><b>Regularization</b>: WeightDecay L2 1e-3 for small corpus.</li></ul><h3>Full source</h3><pre><code>package projects.nlp;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.regularization.Dropout;
+import projects.common.Proj;
+import projects.common.TextCorpus;
+import projects.common.Vocab;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * P06 - Sentiment analysis (positive/negative movie reviews).
+ * Bag-of-words features over an embedded mini-corpus; MLP classifier.
+ *
+ * Run : mvn compile exec:java &quot;-Dexec.mainClass=projects.nlp.SentimentAnalyzer&quot; &quot;-Dexec.args=40 16&quot;
+ */
+public class SentimentAnalyzer {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 40), batch = Proj.batch(args, 16);
+        long t0 = System.currentTimeMillis();
+
+        List&lt;String&gt; texts = new ArrayList&lt;&gt;();
+        int[] labels0 = new int[TextCorpus.POSITIVE.size() + TextCorpus.NEGATIVE.size()];
+        int n = 0;
+        for (String s : TextCorpus.POSITIVE) { texts.add(s); labels0[n++] = 1; }
+        for (String s : TextCorpus.NEGATIVE) { texts.add(s); labels0[n++] = 0; }
+
+        Vocab vocab = new Vocab(texts);
+        double[][] feats = Vocab.bowMatrix(texts, vocab);
+        Tensor x = Tensor.fromFlat(flatten(feats), feats.length, vocab.size);
+        Proj.shuffle(x, labels0, new java.util.Random(42));
+
+        // split 80/20
+        int split = (int) (x.rows() * 0.8);
+        Tensor trainX = x.sliceRows(0, split), testX = x.sliceRows(split, x.rows());
+        int[] trainY = java.util.Arrays.copyOf(labels0, split);
+        int[] testY = java.util.Arrays.copyOfRange(labels0, split, x.rows());
+
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new ml.layer.DenseLayer(vocab.size, 64));
+        net.add(new ml.activation.ReLU());
+        net.add(new Dropout(0.3));
+        net.add(new ml.layer.DenseLayer(64, 2));
+        net.add(new ml.activation.Softmax());
+        System.out.printf(&quot;[P06 Sentiment] vocab=%d train=%d test=%d%n&quot;, vocab.size, trainX.rows(), testX.rows());
+
+        new Trainer(net, new CrossEntropyLoss(), new Adam(0.005)).withWeightDecay(new ml.regularization.WeightDecay(0, 1e-3)).fit(trainX, trainY, epochs, batch);
+
+        System.out.printf(&quot;Train acc: %.1f%% | Test acc: %.1f%%%n&quot;,
+            100 * acc(net, trainX, trainY), 100 * acc(net, testX, testY));
+
+        // Demo predictions on unseen sentences
+        String[] demo = {
+            &quot;a wonderful and moving experience with brilliant acting&quot;,
+            &quot;boring dull and a complete waste of time&quot;,
+            &quot;fantastic visuals great story would recommend&quot;,
+            &quot;terrible script awful pacing i hated it&quot;};
+        String[] names = {&quot;NEG&quot;, &quot;POS&quot;};
+        for (String s : demo) {
+            Tensor out = net.forward(Tensor.fromFlat(vocab.bow(s), 1, vocab.size), false);
+            System.out.printf(&quot;  \&quot;%s\&quot; -&gt; %s (%.0f%%)%n&quot;, s, names[out.argmaxRow(0)],
+                100 * Math.max(out.get(0, 0), out.get(0, 1)));
+        }
+        Proj.footer(&quot;P06 Sentiment&quot;, t0);
+    }
+
+    static double acc(NeuralNetwork net, Tensor x, int[] y) {
+        Tensor out = net.forward(x, false);
+        int c = 0;
+        for (int i = 0; i &lt; x.rows(); i++) if (out.argmaxRow(i) == y[i]) c++;
+        return (double) c / x.rows();
+    }
+
+    static double[] flatten(double[][] m) {
+        double[] f = new double[m.length * m[0].length];
+        for (int i = 0; i &lt; m.length; i++) System.arraycopy(m[i], 0, f, i * m[0].length, m[0].length);
+        return f;
+    }
+}
+
+
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.nlp.SentimentAnalyzer</span></div></section></main></div>
+</body></html>

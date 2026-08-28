@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part II - Attention - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Attention</h1>
+      <p class="lead" style="font-size:15px">SelfAttention to MultiHead to TransformerBlock</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="active">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="active">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>8 · Attention: SelfAttention → MultiHead → TransformerBlock</h2>
+
+  <h3>SelfAttention <span class="tag">ml/layer/SelfAttention.java</span></h3>
+  <p>Scaled dot-product attention: <code>Q=XW<sub>Q</sub>, K=XW<sub>K</sub>, V=XW<sub>V</sub>, Attn=softmax(QKᵀ/√d), Out=Attn·V·W<sub>O</sub></code>.</p>
+<pre><code>SelfAttention attn = new SelfAttention(64); // embedDim 64
+SelfAttention noScale = new SelfAttention(64, false);
+Tensor out = attn.forward(seqTensor, true); // [batch, seqLen*64]
+Tensor weights = attn.getAttentionWeights(); // inspect [seqLen × seqLen]
+</code></pre>
+
+  <h3>MultiHeadAttention <span class="tag">ml/layer/MultiHeadAttention.java</span></h3>
+  <p>Splits <code>embedDim</code> into <code>numHeads</code> heads (each <code>headDim = embedDim/numHeads</code>), runs attention per head, concatenates, projects via <code>W<sub>O</sub></code>. Supports cross-attention.</p>
+<pre><code>MultiHeadAttention mha = new MultiHeadAttention(512, 8);
+MultiHeadAttention cross = new MultiHeadAttention(512, 8, true);
+Tensor query = new Tensor(4, 10*512); // batch 4, seqLen 10
+Tensor kv    = new Tensor(4, 12*512); // encoder output
+Tensor out2  = cross.forward(query, kv, true);
+
+// Standard self-attention via Layer interface
+NeuralNetwork withMHA = new NeuralNetwork()
+  .add(new MultiHeadAttention(128, 4))
+  .add(new LayerNorm(128));
+</code></pre>
+
+  <h3>TransformerBlock <span class="tag">ml/layer/TransformerBlock.java</span></h3>
+  <p>Full block: <code>Norm → MHA → Dropout → Residual → Norm → FFN(ReLU) → Dropout → Residual</code>. Toggle <code>preNorm</code> for Pre-LN vs Post-LN.</p>
+<pre><code>TransformerBlock block = new TransformerBlock(512, 8, 2048); // embed, heads, ffDim
+TransformerBlock crossBlock = new TransformerBlock(512, 8, 2048, true, true, 0.1);
+TransformerBlock light = new TransformerBlock(128, 4, 512, false, true, 0.1);
+
+NeuralNetwork transformer = new NeuralNetwork()
+  .add(new DenseLayer(64, 512))
+  .add(new TransformerBlock(512, 8, 2048))
+  .add(new TransformerBlock(512, 8, 2048))
+  .add(new LayerNorm(512))
+  .add(new DenseLayer(512, 1000))
+  .add(new Softmax());
+
+// Encoder-decoder cross-attention
+Tensor encOut = transformer.forward(src, true); // placeholder
+Tensor decOut = crossBlock.forward(tgt, encOut, true);
+</code></pre>
+  <div class="callout success"><b>When to use what:</b> SelfAttention for single-sequence tasks · MultiHead for richer representation · TransformerBlock for any modern NLP/vision transformer. Stack 2–6 blocks; always follow with <code>LayerNorm</code>.</div>
+<div class="callout success">Deep dive: see <a href="19-transformers.html">19 · Transformers</a> for full math + diagrams and <a href="20-llm.html">20 · LLM</a> for a runnable mini-GPT built from these blocks. For NLP pipeline see <a href="18-nlp.html">18 · NLP</a>.</div></section>
+
+<!-- ============ CH9 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="04-layers-recurrent.html"><span class="label">Previous</span><span class="title">Recurrent</span></a>
+      <a href="06-regularization.html"><span class="label">Next</span><span class="title">Regularization</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

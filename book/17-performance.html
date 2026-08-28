@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>17 - Performance Tuning - mnist-dl Handbook</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Book</div>
+<h1 style="font-size:30px">17 - Performance Tuning</h1><p class="lead" style="font-size:15px">From Tensor thresholds to optimizer trade-offs</p></div></div></header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="active">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="active">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">Code font 17px (+4px) - Each page standalone</div></nav>
+<main class="content">
+<section class="card"><div class="eyebrow">Section: Performance</div><h2>17 - Optimizing for Performance</h2><p class="muted">Concrete levers in this codebase - from micro (Tensor) to macro (Trainer) - with where to look (<code>file:line</code>) and how much each matters.</p>
+<div class="grid3">
+<div class="stat"><b>Batch 64-256</b><span class="muted">Sweet spot: amortizes matmul overhead vs cache</span></div>
+<div class="stat"><b>Clip 5.0 + LR 1e-3</b><span class="muted">Lets you use larger LR without divergence</span></div>
+<div class="stat"><b>Dropout 0.2-0.3</b><span class="muted">Regularizes without halving throughput</span></div>
+</div>
+<h3>1. Tensor parallelism (<code>ml/core/Tensor.java:7</code>)</h3>
+<ul>
+<li><code>PARALLEL_THRESHOLD=50_000</code> and <code>MATMUL_PARALLEL_OPS=2_000_000</code> gate sharding via <code>ThreadPoolManager.compute()</code>. Keep tensors above threshold to benefit; tiny batches (e.g., 1-8) stay sequential and are slower per sample.</li>
+<li><b>Matmul tiling</b>: <code>Tensor.matmul</code> shards by output rows via <code>CompletableFuture</code>. For 784->256, batch 256 gives 256*256*784 ~51M ops -> parallel. Batch 32 is ~6M -> still parallel but less scaling.</li>
+<li><b>Reductions</b>: <code>sum/max/mean/sumCols</code> use lock-free accumulators - no ReentrantLock contention.</li>
+</ul>
+<pre><code>// Good: large batch amortizes fork/join
+Tensor out = Tensor.matmul(batch256, W.transpose()); // parallel
+// Bad: loop over single samples
+for(row) out = Tensor.matmul(singleRow, W.transpose()); // sequential overhead</code></pre>
+<h3>2. DenseLayer caching (<code>ml/layer/DenseLayer.java:18</code>)</h3>
+<ul>
+<li><code>cachedTranspose</code> avoids re-transposing W each forward. <code>invalidateTranspose()</code> only after update - forward is 2x faster.</li>
+<li><b>Bias addition</b> is sharded if output > 8192. BiasGrad via sumCols is also parallel sharded above threshold.</li>
+<li><b>Grad accumulation</b> shards by batch chunk into thread-local <code>partialDW</code> then merge - avoids atomics.</li>
+</ul>
+<div class="callout">Pattern: keep <code>in * out * batch</code> large enough to shard, but not so large that GC pauses from allocating <code>partialDW</code> arrays.</div>
+<h3>3. Trainer loops (<code>ml/training/Trainer.java:35</code>)</h3>
+<ul>
+<li><b>DataLoader shuffle</b> is O(n) Fisher-Yates via ThreadLocalRandom - run once per epoch, not per batch. NoDataLoaderBench shows ~5-10% speedup by skipping it, but loses generalization.</li>
+<li><b>fitParallel</b> overlaps forward passes via pool, but backward stays sequential (network stateful). Use when forward dominates (deep CNN/Transformer).</li>
+<li><b>EarlyStoppingTrainer</b> clones Dense weights via System.arraycopy - cheap vs re-training.</li>
+</ul>
+<h3>4. Data pipeline</h3>
+<ul>
+<li><b>MNISTLoader</b> loads whole dataset as one Tensor (60k*784 doubles ~ 376 MB) - fits in L3? Keep as Tensor, sliceRows for batches (zero-copy-ish via System.arraycopy into new Tensor). Avoid per-sample file I/O.</li>
+<li><b>ImageReader</b> for CIFAR-100 resizes to 32x32 once at load; not per epoch.</li>
+<li><b>BoW</b> in Vocab builds dense double[] - sparse would be faster for large vocab, but dense wins for &lt;5k vocab due to contiguous matmul.</li>
+</ul>
+<h3>5. Regularization &amp; augmentation cost</h3>
+<ul>
+<li>Dropout forward allocates mask and scales - disabled when <code>training=false</code> (inference 20% faster).</li>
+<li>WeightDecay loops over all weights - O(params) per step - negligible vs matmul O(batch*params).</li>
+<li>GradientClipper by NORM computes global L2 then scales - O(params) extra pass; by VALUE is also O(params) but cheaper branch.</li>
+<li>RandomFlip/Rotation are Layer impls - they run on CPU per row; place first and only when needed (vision) else skip.</li>
+</ul>
+<h3>6. Optimizer choice</h3>
+<table class="table"><tr><th>Optimizer</th><th>Step cost</th><th>When fastest</th></tr>
+<tr><td>SGD</td><td>O(params)</td><td>Large batch, no adaptivity - cheapest</td></tr>
+<tr><td>SGD+momentum</td><td>O(params) + velocity</td><td>Similar, momentum adds one pass</td></tr>
+<tr><td>Adam/AdamW</td><td>~4x SGD (m,v,bias-corr)</td><td>Needs fewer epochs to converge - net win despite per-step cost</td></tr>
+<tr><td>RMSProp/AdaGrad</td><td>~2x SGD</td><td>Sparse features - AdaGrad cache grows, consider Adam instead</td></tr>
+</table>
+<div class="callout success">Rule: Adam 0.001 converges in ~10 epochs where SGD 0.1 needs 30+ - 3x fewer passes offsets 4x per-step cost.</div>
+<h3>7. LR scheduling (<code>ml/training/LRScheduler.java:1</code>)</h3>
+<ul>
+<li>CosineAnnealing and WarmupCosine avoid late-epoch thrashing - no extra compute.</li>
+<li>ReduceOnPlateau checks val loss - one forward per epoch on val set, negligible.</li>
+<li>StartAutoUpdate uses ScheduledExecutorService - avoid busy-wait loops.</li>
+</ul>
+<h3>8. Evaluation (<code>ml/evaluation/Evaluator.java:1</code>)</h3>
+<ul>
+<li>Parallel evaluate shards batches and merges ConfusionMatrix - near-linear scaling with cores for large test sets (&gt;10k).</li>
+<li>Use <code>predictBatch</code> for inference - one matmul per 256 vs 256 matmuls of single rows is 10-20x faster.</li>
+</ul>
+<h3>9. Practical checklist</h3>
+<ol>
+<li>Batch 128-256 for MNIST/Fashion, 32-64 for LSTM (seqLen large).</li>
+<li>Use <code>SeedManager.setSeed(42)</code> to make timings comparable.</li>
+<li>Profile with the <code>examples/*Bench</code> files: MinimalBench isolates matmul, DiagBench checks grad health, BenchEpoch times real training.</li>
+<li>Keep network width moderate: 784-512-256-128 is ~500k params, matmuls dominate; 784-2048 would be 1.6M and GC-heavy.</li>
+<li>Reuse Tensors where possible: <code>applyInPlace</code>, <code>multiplyInPlace</code> avoid allocation.</li>
+<li>Save models via binary (<code>saveModel</code>) - JSON is 5x larger and slower to parse.</li>
+</ol>
+<pre><code>// Faster batch loop (pre-allocate target Tensor)
+Tensor target = Tensor.zeros(batch,1);
+for(int i=0;i&lt;batch;i++) target.set(i,0, y[from+i]);
+// Use inPlace ops inside custom loops
+grad.multiplyInPlace(2.0/batch);
+// Use Trainer.fitParallel for deep nets where forward dominates
+trainer.fitParallel(trainX, trainY, 10, 256, 4);</code></pre>
+</section>
+</main></div>
+</body></html>

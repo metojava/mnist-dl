@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vocab - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">Vocab</h1><p class="lead" style="font-size:15px">Common - Bag-of-words + bowMatrix + one-hot, vocab build from texts</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/common-Vocab.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/common/Vocab.java</div><h2>Vocab</h2><p class="muted"><b>Common</b> - Bag-of-words + bowMatrix + one-hot, vocab build from texts</p><h3>ML principles</h3><p>Bag-of-words + bowMatrix + one-hot, vocab build from texts</p><h3>Full source</h3><pre><code>package projects.common;
+
+import ml.core.Tensor;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/** Minimal text pipeline: vocabulary, bag-of-words, char n-grams. */
+public final class Vocab {
+    private final Map&lt;String, Integer&gt; wordToIdx = new HashMap&lt;&gt;();
+    private final List&lt;String&gt; idxToWord = new ArrayList&lt;&gt;();
+    public final int size;
+
+    public Vocab(List&lt;String&gt; sentences) {
+        for (String s : sentences)
+            for (String w : tokens(s))
+                if (!wordToIdx.containsKey(w)) { wordToIdx.put(w, idxToWord.size()); idxToWord.add(w); }
+        size = Math.max(1, idxToWord.size());
+    }
+
+    public static String[] tokens(String s) {
+        return s.toLowerCase().replaceAll(&quot;[^a-z0-9&#x27; ]&quot;, &quot; &quot;).trim().split(&quot;\\s+&quot;);
+    }
+
+    public int indexOf(String word) { return wordToIdx.getOrDefault(word, -1); }
+
+    public String wordAt(int idx) { return idx &gt;= 0 &amp;&amp; idx &lt; idxToWord.size() ? idxToWord.get(idx) : &quot;&lt;unk&gt;&quot;; }
+
+    /** Bag-of-words vector (unigrams + bigrams). */
+    public double[] bow(String sentence) {
+        double[] v = new double[size];
+        String[] t = tokens(sentence);
+        for (String w : t) {
+            int i = indexOf(w);
+            if (i &gt;= 0) v[i] += 1;
+        }
+        for (int i = 0; i + 1 &lt; t.length; i++) {
+            int j = indexOf(t[i] + &quot;_&quot; + t[i + 1]);
+            if (j &gt;= 0 &amp;&amp; j &lt; size) v[j] += 1;   // bigrams only counted if unigram slot exists
+        }
+        // L2 normalize
+        double norm = 0;
+        for (double val : v) norm += val * val;
+        norm = Math.sqrt(norm);
+        if (norm &gt; 0) for (int i = 0; i &lt; v.length; i++) v[i] /= norm;
+        return v;
+    }
+
+    /** Hashed character n-gram features over a fixed alphabet. */
+    public static double[] charNgrams(String s, int n, int dim) {
+        s = s.toLowerCase().replaceAll(&quot;[^a-z ]&quot;, &quot; &quot;).replaceAll(&quot;\\s+&quot;, &quot; &quot;);
+        double[] v = new double[dim];
+        for (int i = 0; i + n &lt;= s.length(); i++) {
+            int h = s.substring(i, i + n).hashCode();
+            int idx = Math.floorMod(h, dim);
+            v[idx] += 1;
+        }
+        double norm = 0;
+        for (double val : v) norm += val;
+        if (norm &gt; 0) for (int i = 0; i &lt; dim; i++) v[i] /= norm;
+        return v;
+    }
+
+    public static double[][] bowMatrix(List&lt;String&gt; sentences, Vocab vocab) {
+        double[][] m = new double[sentences.size()][vocab.size];
+        for (int i = 0; i &lt; m.length; i++) m[i] = vocab.bow(sentences.get(i));
+        return m;
+    }
+
+    /** Word-dropout augmentation: original + k corrupted copies per sentence. */
+    public static void augment(List&lt;String&gt; textsIn, int[] labelsIn,
+                               List&lt;String&gt; textsOut, int[] labelsOut, int copies, java.util.Random rng) {
+        for (int i = 0; i &lt; textsIn.size(); i++) {
+            String[] t = tokens(textsIn.get(i));
+            textsOut.add(textsIn.get(i)); labelsOut[textsOut.size() - 1] = labelsIn[i];
+            for (int c = 0; c &lt; copies; c++) {
+                StringBuilder sb = new StringBuilder();
+                for (String w : t) if (rng.nextDouble() &gt; 0.2) sb.append(w).append(&#x27; &#x27;);
+                textsOut.add(sb.toString().trim()); labelsOut[textsOut.size() - 1] = labelsIn[i];
+            }
+        }
+    }
+
+    /** Builds char-level one-hot sequences: row = flattened T frames of alphabet-size one-hot. */
+    public static char[] alphabet() {
+        StringBuilder sb = new StringBuilder();
+        for (char c = &#x27;a&#x27;; c &lt;= &#x27;z&#x27;; c++) sb.append(c);
+        sb.append(&quot; .,!?&#x27;&quot;); 
+        return sb.toString().toCharArray();
+    }
+
+    public static int charIndex(char c, char[] alphabet) {
+        c = Character.toLowerCase(c);
+        for (int i = 0; i &lt; alphabet.length; i++) if (alphabet[i] == c) return i;
+        return -1;
+    }
+
+    public static Tensor charSequences(String text, int T, char[] alphabet, int[] targetsOut, int maxWindows) {
+        int V = alphabet.length;
+        List&lt;Integer&gt; idxList = new java.util.ArrayList&lt;&gt;();
+        for (char c : text.toCharArray()) {
+            int i = charIndex(c, alphabet);
+            if (i &gt;= 0) idxList.add(i);
+        }
+        int usable = Math.min(idxList.size() - T, maxWindows);
+        Tensor x = new Tensor(usable, T * V);
+        for (int n = 0; n &lt; usable; n++)
+            for (int t = 0; t &lt; T; t++)
+                x.set(n, t * V + idxList.get(n + t), 1.0);
+        for (int n = 0; n &lt; usable; n++) targetsOut[n] = idxList.get(n + T);
+        return x;
+    }
+}
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.common.Vocab</span></div></section></main></div>
+</body></html>

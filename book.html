@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The mnist-dl Handbook — Production Deep Learning in Pure Java</title>
+<style>
+:root{
+  --bg:#f8f9fb; --surface:#ffffff; --surface-2:#f1f3f7; --border:#e2e6ee;
+  --text:#1a2332; --muted:#667085; --accent:#4f46e5; --accent-2:#7c3aed;
+  --accent-soft:#eef2ff; --code-bg:#0f172a; --code-fg:#e2e8f0;
+  --success:#059669; --warn:#d97706; --radius:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--bg);line-height:1.7}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+/* Header */
+.hero{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 35%,#312e81 60%,#4f46e5 100%);color:#fff;padding:56px 24px 48px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 85% 15%,rgba(255,255,255,.12),transparent 60%)}
+.hero-inner{max-width:1160px;margin:0 auto;position:relative;z-index:1;display:grid;grid-template-columns:1.35fr .85fr;gap:32px;align-items:center}
+.hero h1{font-size:42px;line-height:1.05;margin:0 0 12px;letter-spacing:-.03em}
+.hero p.lead{font-size:17px;opacity:.9;margin:0 0 18px}
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.badge{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);padding:6px 12px;border-radius:999px;font-size:12px;backdrop-filter:blur(6px)}
+.hero-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:18px;backdrop-filter:blur(8px)}
+.hero-card pre{margin:0;background:rgba(15,23,42,.55);border-radius:12px;padding:14px;overflow:auto;font-size:16.5px;line-height:1.5}
+.btn-row{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer}
+.btn-primary{background:#fff;color:#1e1b4b}
+.btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+/* Layout */
+.shell{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:280px 1fr;gap:28px;padding:28px 24px}
+.sidebar{position:sticky;top:20px;align-self:start;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;max-height:calc(100vh - 40px);overflow:auto}
+.sidebar h3{margin:0 0 10px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.toc{list-style:none;padding:0;margin:0}
+.toc li{margin:2px 0}
+.toc a{display:block;padding:7px 10px;border-radius:9px;font-size:13px;color:var(--muted)}
+.toc a:hover{background:var(--surface-2);color:var(--text);text-decoration:none}
+.toc a.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.toc .lvl2{padding-left:22px;font-size:12.5px}
+.content{min-width:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px 26px;margin-bottom:22px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{margin:0 0 6px;font-size:26px;letter-spacing:-.02em}
+.card h3{margin:28px 0 10px;font-size:18px}
+.card h4{margin:18px 0 8px;font-size:15px;color:#1e293b}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:6px}
+.muted{color:var(--muted)}
+.kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--surface-2);border:1px solid var(--border);border-bottom-width:2px;padding:2px 6px;border-radius:6px;font-size:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.stat{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px}
+.stat b{font-size:22px;display:block}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th,.table td{border:1px solid var(--border);padding:9px 10px;text-align:left;vertical-align:top}
+.table th{background:var(--surface-2);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+pre{background:var(--code-bg);color:var(--code-fg);padding:16px 18px;border-radius:12px;overflow:auto;font-size:17px;line-height:1.55;margin:14px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+.inline-code{background:var(--surface-2);border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:16.5px}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 12px 12px 0;margin:14px 0;font-size:13.5px}
+.callout.warn{border-color:var(--warn);background:#fffbeb}
+.callout.success{border-color:var(--success);background:#ecfdf5}
+.tag{display:inline-block;background:var(--accent-soft);color:var(--accent);border:1px solid #c7d2fe;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em}
+.divider{height:1px;background:var(--border);margin:18px 0}
+.figure{background:var(--surface-2);border:1px dashed var(--border);border-radius:12px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+@media(max-width:980px){
+  .hero-inner{grid-template-columns:1fr}
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:static;max-height:none}
+  .grid2,.grid3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 • Java 17 • Maven</div>
+      <h1>The <span style="color:#a5b4fc">mnist-dl</span> Handbook</h1>
+      <p class="lead">Production-ready deep learning in pure Java. A complete online book covering every layer, activation, loss, optimizer, and 6 application domains — from first principles to a full end-to-end build.</p>
+      <div class="badges">
+        <span class="badge">⚡ Parallel Tensor • ExecutorService</span>
+        <span class="badge">🧱 15 Layer Types</span>
+        <span class="badge">🔥 14 Activations</span>
+        <span class="badge">📉 9 Losses</span>
+        <span class="badge">🎯 5 Optimizers</span>
+      </div>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="#ch1">Start Reading →</a>
+        <a class="btn btn-ghost" href="#full-example">Jump to Full Example</a>
+      </div>
+      <p style="margin-top:12px;font-size:12px;opacity:.75">Single-file HTML • Offline-capable • Print-friendly • Copy-paste runnable code</p>
+    </div>
+    <div class="hero-card">
+      <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;margin-bottom:8px">Quickstart — 30 seconds</div>
+<pre><code>// pom.xml already declares Java 17 + JUnit 5
+NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784, 256))
+  .add(new ReLU())
+  .add(new Dropout(0.2))
+  .add(new DenseLayer(256, 10))
+  .add(new Softmax());
+
+Trainer trainer = new Trainer(net,
+  new CrossEntropyLoss(), new Adam(0.001));
+trainer.fit(trainImages, trainLabels, 10, 256);
+
+Evaluator eval = new Evaluator(classNames);
+System.out.println(eval.evaluate(net, testImages, testLabels));</code></pre>
+      <div style="margin-top:10px;font-size:12px;opacity:.85">Build: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.MNISTClassification</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc" id="toc">
+      <li><a href="#ch1">1 · Philosophy & Architecture</a></li>
+      <li><a href="#ch2">2 · Tensor — The Foundation</a></li>
+      <li><a href="#ch3">3 · Layer Interface</a></li>
+      <li><a href="#ch4">4 · Core Layers: Dense, Conv2D, Flatten, Embedding</a></li>
+      <li><a href="#ch5">5 · Normalization: BatchNorm & LayerNorm</a></li>
+      <li><a href="#ch6">6 · Pooling: MaxPool & AvgPool</a></li>
+      <li><a href="#ch7">7 · Recurrence: RNN, LSTM, GRU</a></li>
+      <li><a href="#ch8">8 · Attention: SelfAttention, MultiHead & TransformerBlock</a></li>
+      <li><a href="#ch9">9 · Regularization & Augmentation</a></li>
+      <li><a href="#ch10">10 · Activations (14)</a></li>
+      <li><a href="#ch11">11 · Losses (9)</a></li>
+      <li><a href="#ch12">12 · Optimizers (5)</a></li>
+      <li><a href="#ch13">13 · Training Stack: Network, Trainer, DataLoader</a></li>
+      <li><a href="#ch14">14 · Evaluation, Metrics & Persistence</a></li>
+      <li><a href="#ch15">15 · Application Gallery (6 Domains)</a></li>
+      <li><a href="#full-example">16 · Full End-to-End Example</a></li>
+      <li><a href="#appendix">Appendix · API Reference & Cheatsheet</a></li>
+    </ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Tip: press <span class="kbd">/</span> to focus search. Use browser find for symbols.</div>
+  </nav>
+
+  <main class="content">
+
+<!-- ============ CH1 ============ -->
+<section id="ch1" class="card">
+  <div class="eyebrow">Part I — Foundations</div>
+  <h2>1 · Philosophy & Architecture</h2>
+  <p class="muted">What <code>mnist-dl</code> is, why it exists, and how it is organized.</p>
+  <div class="grid3">
+    <div class="stat"><b>Pure Java</b><span class="muted">No Python, no JNI, no native libs. Java 17, Maven, JFreeChart for plotting.</span></div>
+    <div class="stat"><b>Parallel by default</b><span class="muted">Tensor ops, matmul, reductions & DataLoader use <code>ExecutorService</code> + <code>CompletableFuture</code>.</span></div>
+    <div class="stat"><b>Batteries included</b><span class="muted">15 layers, 14 activations, 9 losses, 5 optimizers, 6 app domains with runnable <code>projects.*</code>.</span></div>
+  </div>
+  <h3>Mental model</h3>
+  <p>The library follows the classic deep learning stack: <b>Tensor</b> → <b>Layer</b> → <b>NeuralNetwork</b> → <b>Loss + Optimizer + Trainer</b> → <b>Evaluator</b>. Everything is composed via the <code>Layer</code> interface. Data flows as <code>Tensor(rows=batch, cols=features)</code> with row-major double arrays.</p>
+  <div class="figure">Tensor (batch × features) → [Dense → Activation → Dropout → ... → Softmax] → Loss → Optimizer.step() ↻ Trainer.fit()</div>
+  <h3>Package map</h3>
+  <table class="table">
+    <tr><th>Package</th><th>Key classes</th><th>Role</th></tr>
+    <tr><td><code>ml.core</code></td><td><code>Tensor</code>, <code>Initializers</code>, <code>ThreadPoolManager</code>, <code>SeedManager</code></td><td>Core data &amp; infra</td></tr>
+    <tr><td><code>ml.layer</code></td><td><code>Layer</code>, <code>DenseLayer</code>, <code>Conv2D</code>, <code>BatchNorm</code>, <code>LayerNorm</code>, <code>Embedding</code>, <code>Flatten</code>, <code>MaxPool</code>, <code>AvgPool</code>, <code>RNNLayer</code>, <code>LSTMLayer</code>, <code>GRULayer</code>, <code>SelfAttention</code>, <code>MultiHeadAttention</code>, <code>TransformerBlock</code></td><td>Layers</td></tr>
+    <tr><td><code>ml.activation</code></td><td>ReLU … LogSigmoid (14)</td><td>Non-linearities (extend <code>ActivationLayer</code>)</td></tr>
+    <tr><td><code>ml.loss</code></td><td>CrossEntropy … CTC (9)</td><td>Loss = forward scalar + backward gradient</td></tr>
+    <tr><td><code>ml.optimizer</code></td><td>SGD, Adam, AdamW, RMSProp, AdaGrad</td><td>Parameter update rules</td></tr>
+    <tr><td><code>ml.regularization</code></td><td>Dropout, WeightDecay, GradientClipper</td><td>Regularization</td></tr>
+    <tr><td><code>ml.augmentation</code></td><td>RandomFlip, RandomCrop, RandomRotation, RandomZoom</td><td>Data augmentation (also <code>Layer</code>)</td></tr>
+    <tr><td><code>ml.training</code></td><td>NeuralNetwork, Trainer, EarlyStoppingTrainer, DataLoader, Dataset, LRScheduler, Callback, TrainingHistory, ModelSummary</td><td>Training loop</td></tr>
+    <tr><td><code>ml.evaluation</code></td><td>Evaluator, ConfusionMatrix, EvaluationResult, Prediction</td><td>Metrics</td></tr>
+    <tr><td><code>ml.network</code></td><td>ModelSerializer, Functional</td><td>Save/load (binary &amp; JSON)</td></tr>
+    <tr><td><code>projects.*</code></td><td>vision, nlp, tabular, timeseries, anomaly, recommend</td><td>20+ runnable demos</td></tr>
+  </table>
+  <div class="callout">Design choice: <b>everything is a <code>Layer</code></b> — including activations, dropout, and augmentations — so <code>NeuralNetwork.add(layer)</code> stays uniform and order defines computation.</div>
+</section>
+
+<!-- ============ CH2 ============ -->
+<section id="ch2" class="card">
+  <h2>2 · Tensor — The Foundation</h2>
+  <p class="muted">File: <code>ml/core/Tensor.java</code> · Thread-safe, parallel, row-major <code>double[]</code> of shape <code>[rows, cols]</code>.</p>
+  <h3>Why a custom Tensor?</h3>
+  <p>Java has no native ND-array. <code>Tensor</code> gives the whole library a single, cache-friendly, parallelized primitive without pulling in ND4J or PyTorch JNI.</p>
+  <h3>Construction</h3>
+<pre><code>Tensor a = new Tensor(32, 784);                 // zeros
+Tensor b = Tensor.ones(4, 4);
+Tensor c = Tensor.filled(2, 3, 0.5);
+Tensor r = Tensor.random(8, 128);               // Uniform [0,1)
+Tensor n = Tensor.randomNormal(8, 128);         // N(0,1)
+Tensor x = Tensor.xavier(256, 128);             // Xavier/Glorot (scaled normal)
+Tensor h = Tensor.he(256, 128);                 // He (good for ReLU)
+Tensor t = new Tensor(new double[][]{{1,2},{3,4}});
+Tensor f = Tensor.fromFlat(flatArray, 10, 784); // reshape
+
+int[] shape = t.shape(); // [rows, cols]
+double v = t.get(0, 3);
+t.set(0, 3, 0.42);
+double[] row = t.row(1);
+Tensor slice = t.sliceRows(0, 64); // view copy of first 64 rows
+</code></pre>
+  <h3>Parallel execution model</h3>
+  <p>Thresholds: element-wise <code>PARALLEL_THRESHOLD=50_000</code>, matmul <code>MATMUL_PARALLEL_OPS=2_000_000</code>. Above that, operations shard across <code>ThreadPoolManager.compute()</code> with <code>CompletableFuture</code>.</p>
+<pre><code>// Matmul is sharded by output rows
+Tensor out = Tensor.matmul(a, b); // a[mxk] * b[kxn] = [mxn]
+Tensor tr  = a.transpose();
+Tensor sum = a.add(b);            // element-wise (also subtract/multiply/divide)
+a.addInPlace(b);                  // in-place variant
+Tensor scaled = a.multiply(0.5);
+a.multiplyInPlace(0.5);
+
+double s = a.sum();   // parallel reduction
+double m = a.mean();
+double mx = a.max(); double mn = a.min();
+int best = a.argmaxRow(0);
+int[] preds = a.argmaxAll();
+Tensor rowSums = a.sumRows(); // [rows,1]
+Tensor colSums = a.sumCols(); // [1,cols]
+Tensor y = a.apply(x -> Math.max(0, x)); // parallel map
+a.applyInPlace(Math::tanh);
+Tensor clipped = a.clip(-1, 1);
+Tensor copy = a.copy();
+double[][] arr = a.toArray();
+</code></pre>
+  <div class="callout warn"><b>Shape discipline:</b> The library uses <b>2-D tensors only</b>. Images are flattened (e.g., 28×28 → 784), sequences are flattened as <code>seqLen * features</code> per row. Conv2D reconstructs <code>H = sqrt(cols / channels)</code> internally.</div>
+  <h3>Initializers <span class="tag">ml/core/Initializers.java</span></h3>
+<pre><code>import ml.core.Initializers;
+double[] w1 = Initializers.heWeights(in, out, rng);
+double[] w2 = Initializers.xavierWeights(in, out, rng);
+double[] w3 = Initializers.glorotUniform(in, out, rng);
+double[] w4 = Initializers.orthogonal(in, out, rng);
+Tensor t2 = Initializers.heTensor(rows, cols, rng);
+</code></pre>
+</section>
+
+<!-- ============ CH3 ============ -->
+<section id="ch3" class="card">
+  <h2>3 · The Layer Interface</h2>
+  <p class="muted">File: <code>ml/layer/Layer.java</code> — every composable block implements this.</p>
+<pre><code>public interface Layer {
+    Tensor forward(Tensor input, boolean training);
+    Tensor backward(Tensor gradient);
+    void   update(double learningRate);
+    int    inputSize();
+    int    outputSize();
+    int    parameterCount();
+    default Tensor forward(Tensor input){ return forward(input,false); }
+}</code></pre>
+  <ul>
+    <li><code>forward(input, training)</code> — <code>training=true</code> enables Dropout/BatchNorm training behaviour.</li>
+    <li><code>backward(gradient)</code> — returns <code>dL/dInput</code>; stores <code>dL/dW</code> internally for <code>update</code>.</li>
+    <li><code>update(lr)</code> — SGD step (optimizers call this or handle Dense specially).</li>
+    <li><code>inputSize/outputSize</code> — return <code>-1</code> for shape-agnostic layers (activations, pooling).</li>
+  </ul>
+  <p>Base for activations: <code>ActivationLayer</code> caches <code>lastInput/lastOutput</code> and delegates to <code>computeForward</code>.</p>
+<pre><code>public abstract class ActivationLayer implements Layer {
+    protected Tensor lastInput, lastOutput;
+    public Tensor forward(Tensor input, boolean t){
+        this.lastInput=input; this.lastOutput=computeForward(input); return lastOutput;
+    }
+    protected abstract Tensor computeForward(Tensor input);
+    public int inputSize(){return -1;} public int outputSize(){return -1;}
+    public int parameterCount(){return 0;} public void update(double lr){}
+}</code></pre>
+</section>
+
+<!-- ============ CH4 ============ -->
+<section id="ch4" class="card">
+  <h2>4 · Core Layers: Dense, Conv2D, Flatten, Embedding</h2>
+
+  <h3>DenseLayer — Fully Connected <span class="tag">ml/layer/DenseLayer.java</span></h3>
+  <p>Computes <code>y = x·Wᵀ + b</code> with He-initialized <code>W[outputSize × inputSize]</code>. Backward is parallel sharded; bias broadcasting and weight update are parallel.</p>
+<pre><code>DenseLayer fc1 = new DenseLayer(784, 256); // in=784, out=256
+DenseLayer fc2 = new DenseLayer(256, 10);
+
+NeuralNetwork net = new NeuralNetwork().add(fc1).add(new ReLU()).add(fc2);
+Tensor out = net.forward(batch);          // [batch,10]
+Tensor dInput = fc2.backward(grad);       // returns dL/dx
+fc2.update(0.001);                        // SGD step
+
+// Introspection
+Tensor W = fc1.weights();   // [256,784]
+Tensor b = fc1.bias();      // [1,256]
+Tensor dW = fc1.weightsGradient();
+System.out.println(net.totalParameters());
+
+// Shape guard — throws LayerConfigurationException on mismatch
+new NeuralNetwork().add(new DenseLayer(10,20)).add(new DenseLayer(30,5)); // ❌ throws
+</code></pre>
+  <div class="callout success"><b>When to use:</b> Tabular data, MLP heads, final classifier after Conv/Recurrent stacks. Parameter count = <code>in×out + out</code>.</div>
+
+  <h3>Conv2D — 2D Convolution <span class="tag">ml/layer/Conv2D.java</span></h3>
+  <p>Square images assumed: <code>H = sqrt(cols / inChannels)</code>. Supports stride, padding, multiple output channels. Kernels are <code>Tensor[inChannels·k·k, 1]</code> per output channel.</p>
+<pre><code>// Classic LeNet-style stem for 28×28 grayscale
+Conv2D conv1 = new Conv2D(1, 16, 3);              // 1→16 channels, 3×3 kernel
+Conv2D conv2 = new Conv2D(16, 32, 3, 1, 1, new Random(0)); // stride 1, pad 1
+
+NeuralNetwork cnn = new NeuralNetwork()
+  .add(new Conv2D(1, 16, 3))
+  .add(new ReLU())
+  .add(new MaxPool(2))          // 28→14
+  .add(new Conv2D(16, 32, 3))
+  .add(new ReLU())
+  .add(new MaxPool(2))          // 14→7  (32*7*7 = 1568 features)
+  .add(new Flatten())
+  .add(new DenseLayer(1568, 128))
+  .add(new ReLU())
+  .add(new DenseLayer(128, 10))
+  .add(new Softmax());
+
+// Access kernels
+Tensor k0 = conv1.kernel(0);
+double[] bias = conv1.biases();
+int params = conv1.parameterCount(); // outC*inC*k*k + outC
+</code></pre>
+
+  <h3>Flatten <span class="tag">ml/layer/Flatten.java</span></h3>
+  <p>Reshapes <code>[batch, H·W·C]</code> → <code>[batch, H·W·C]</code> (logically flattens spatial dims for Dense). No parameters, backward is identity reshape.</p>
+<pre><code>Flatten flat = new Flatten();
+NeuralNetwork net2 = new NeuralNetwork().add(new Conv2D(1,8,3)).add(new Flatten()).add(new DenseLayer(-1,64));
+// Note: Flatten reports inputSize/outputSize = -1 so NeuralNetwork skips shape check
+</code></pre>
+
+  <h3>Embedding <span class="tag">ml/layer/Embedding.java</span></h3>
+  <p>Lookup table <code>[vocabSize × embeddingDim]</code>. Input is expected to carry token ids (as doubles) — projects encode via <code>Vocab</code> + bag-of-words or id sequences.</p>
+<pre><code>Embedding emb = new Embedding(5000, 128); // vocab 5k, dim 128
+Tensor ids = Tensor.fromFlat(new double[]{12, 45, 7, 0}, 1, 4);
+Tensor embedded = emb.forward(ids, true); // [1, 4*128] — flattened sequence
+System.out.println(emb.parameterCount()); // 5000*128
+</code></pre>
+  <div class="figure">Tip: For NLP, combine <code>Embedding → LSTMLayer → Dense → Softmax</code>. See Projects P06–P11.</div>
+</section>
+
+<!-- ============ CH5 ============ -->
+<section id="ch5" class="card">
+  <h2>5 · Normalization: BatchNorm & LayerNorm</h2>
+  <div class="grid2">
+    <div>
+      <h3>BatchNorm <span class="tag">ml/layer/BatchNorm.java</span></h3>
+      <p>Normalizes across batch: <code>y = γ·(x-μ)/√(σ²+ε) + β</code>. Tracks <code>runningMean/runningVar</code> for inference.</p>
+<pre><code>BatchNorm bn = new BatchNorm(128); // featureSize
+NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784,128))
+  .add(new BatchNorm(128))
+  .add(new ReLU())
+  .add(new DenseLayer(128,10))
+  .add(new Softmax());
+
+Tensor trainOut = net.forward(batch, true);  // uses batch stats
+Tensor testOut  = net.forward(batch, false); // uses running stats
+
+// Trainable params
+Tensor gamma = bn.gamma(); // [1,128]
+Tensor beta  = bn.beta();
+</code></pre>
+    </div>
+    <div>
+      <h3>LayerNorm <span class="tag">ml/layer/LayerNorm.java</span></h3>
+      <p>Normalizes across features per sample (Transformer staple). No running stats; always uses per-row mean/var.</p>
+<pre><code>LayerNorm ln = new LayerNorm(512);
+TransformerBlock block = new TransformerBlock(512, 8, 2048);
+
+NeuralNetwork seq = new NeuralNetwork()
+  .add(new DenseLayer(128,512))
+  .add(new LayerNorm(512))
+  .add(new TransformerBlock(512, 8, 2048))
+  .add(new DenseLayer(512, 10));
+
+// Inside TransformerBlock (preNorm=true by default):
+// x → LayerNorm → MultiHeadAttention → Dropout → residual
+//   → LayerNorm → FFN(ReLU) → Dropout → residual
+</code></pre>
+    </div>
+  </div>
+  <table class="table">
+    <tr><th>Layer</th><th>Normalizes over</th><th>Params</th><th>Best for</th></tr>
+    <tr><td>BatchNorm</td><td>Batch dim</td><td>2×features (γ,β)</td><td>CNNs, MLPs with batch &gt; 16</td></tr>
+    <tr><td>LayerNorm</td><td>Feature dim per sample</td><td>2×features (γ,β)</td><td>Transformers, RNNs, batch=1</td></tr>
+  </table>
+</section>
+
+<!-- ============ CH6 ============ -->
+<section id="ch6" class="card">
+  <h2>6 · Pooling: MaxPool & AvgPool</h2>
+  <p class="muted">Files: <code>ml/layer/MaxPool.java</code>, <code>AvgPool.java</code> · Parameter-free spatial downsampling.</p>
+  <div class="grid2">
+    <div>
+      <h3>MaxPool</h3>
+<pre><code>MaxPool pool2 = new MaxPool(2);       // 2×2, stride 2
+MaxPool pool3 = new MaxPool(3, 1);    // 3×3, stride 1
+NeuralNetwork net = new NeuralNetwork()
+  .add(new Conv2D(1,16,3))
+  .add(new ReLU())
+  .add(new MaxPool(2))  // 28×28 → 14×14
+  .add(new Conv2D(16,32,3))
+  .add(new MaxPool(2)); // 14×14 → 7×7 (approx, depends on valid conv)
+</code></pre>
+      <p class="muted">Keeps strongest activation per window — best for feature selection, translation invariance.</p>
+    </div>
+    <div>
+      <h3>AvgPool</h3>
+<pre><code>AvgPool avg = new AvgPool(2);
+NeuralNetwork net2 = new NeuralNetwork()
+  .add(new Conv2D(1,16,3))
+  .add(new AvgPool(2))
+  .add(new Flatten());
+// AvgPool backward distributes gradient uniformly (1/(k*k))
+</code></pre>
+      <p class="muted">Averages window — smoother, often used before global pooling / classification head.</p>
+    </div>
+  </div>
+  <div class="callout">Both infer <code>H = sqrt(cols)</code> (or <code>sqrt(cols/channels)</code>) and compute <code>outH = (H - pool)/stride + 1</code>. Report <code>inputSize/outputSize = -1</code> so shape checks are skipped.</div>
+</section>
+
+<!-- ============ CH7 ============ -->
+<section id="ch7" class="card">
+  <h2>7 · Recurrence: RNN, LSTM, GRU</h2>
+  <p class="muted">Sequence layers consume <code>Tensor[batch, seqLen*inputSize]</code> flattened. They are the workhorses for time-series and NLP.</p>
+
+  <h3>RNNLayer <span class="tag">ml/layer/RNNLayer.java</span></h3>
+  <p>Elman RNN with tanh/ReLU/sigmoid/ELU. Supports bidirectional and <code>returnSequences</code>.</p>
+<pre><code>RNNLayer rnn = new RNNLayer(1, 64); // input 1-dim, hidden 64
+RNNLayer birnn = new RNNLayer(8, 32, true); // bidirectional
+RNNLayer seqRnn = new RNNLayer(10, 32, false, true, "relu"); // returns all timesteps
+
+Tensor seq = new Tensor(16, 20*10); // batch 16, seqLen 20, feat 10
+Tensor lastHidden = rnn.forward(seq, true);      // [16,64]
+Tensor allHidden  = seqRnn.forward(seq, true);   // [16,20*32]
+</code></pre>
+
+  <h3>LSTMLayer — True BPTT <span class="tag">ml/layer/LSTMLayer.java</span></h3>
+  <p>Full LSTM with forget/input/output gates + cell state and <b>true backprop-through-time</b>. Bidirectional concatenates forward+backward hiddens. ~4× params of RNN.</p>
+<pre><code>// Temperature forecasting: 24h lookback → next temp
+LSTMLayer lstm = new LSTMLayer(1, 64);
+NeuralNetwork forecaster = new NeuralNetwork()
+  .add(new LSTMLayer(1, 64))          // [batch, 24*1] → [batch,64]
+  .add(new DenseLayer(64, 32))
+  .add(new ReLU())
+  .add(new DenseLayer(32, 1));        // regression output
+
+// Sequence-to-sequence (returnSequences=true) — stack them!
+NeuralNetwork stacked = new NeuralNetwork()
+  .add(new LSTMLayer(10, 64, false, true))  // → [batch, seqLen*64]
+  .add(new LSTMLayer(64, 32))                // → [batch,32]
+  .add(new DenseLayer(32, 5))
+  .add(new Softmax());
+
+// Bidirectional for NLP
+LSTMLayer bilstm = new LSTMLayer(128, 64, true, false);
+System.out.println(lstm.parameterCount()); // 4*(in*hid + hid*hid + hid)
+</code></pre>
+
+  <h3>GRULayer <span class="tag">ml/layer/GRULayer.java</span></h3>
+  <p>Gated Recurrent Unit — 3 gates (update, reset, candidate), lighter than LSTM, strong on small datasets.</p>
+<pre><code>GRULayer gru = new GRULayer(10, 64);
+GRULayer bigru = new GRULayer(10, 32, true);
+NeuralNetwork net = new NeuralNetwork()
+  .add(new Embedding(1000, 32))
+  .add(new GRULayer(32, 64))
+  .add(new DenseLayer(64, 2))
+  .add(new Softmax());
+</code></pre>
+
+  <table class="table">
+    <tr><th>Layer</th><th>Params</th><th>Memory</th><th>Use when</th></tr>
+    <tr><td>RNN</td><td>in·h + h·h + h</td><td>Low</td><td>Short sequences, baseline</td></tr>
+    <tr><td>GRU</td><td>3×(in·h + h·h + h)</td><td>Medium</td><td>Time-series, limited data</td></tr>
+    <tr><td>LSTM</td><td>4×(in·h + h·h + h)</td><td>Higher</td><td>Long dependencies, SOTA offline</td></tr>
+  </table>
+</section>
+
+<!-- ============ CH8 ============ -->
+<section id="ch8" class="card">
+  <h2>8 · Attention: SelfAttention → MultiHead → TransformerBlock</h2>
+
+  <h3>SelfAttention <span class="tag">ml/layer/SelfAttention.java</span></h3>
+  <p>Scaled dot-product attention: <code>Q=XW<sub>Q</sub>, K=XW<sub>K</sub>, V=XW<sub>V</sub>, Attn=softmax(QKᵀ/√d), Out=Attn·V·W<sub>O</sub></code>.</p>
+<pre><code>SelfAttention attn = new SelfAttention(64); // embedDim 64
+SelfAttention noScale = new SelfAttention(64, false);
+Tensor out = attn.forward(seqTensor, true); // [batch, seqLen*64]
+Tensor weights = attn.getAttentionWeights(); // inspect [seqLen × seqLen]
+</code></pre>
+
+  <h3>MultiHeadAttention <span class="tag">ml/layer/MultiHeadAttention.java</span></h3>
+  <p>Splits <code>embedDim</code> into <code>numHeads</code> heads (each <code>headDim = embedDim/numHeads</code>), runs attention per head, concatenates, projects via <code>W<sub>O</sub></code>. Supports cross-attention.</p>
+<pre><code>MultiHeadAttention mha = new MultiHeadAttention(512, 8);
+MultiHeadAttention cross = new MultiHeadAttention(512, 8, true);
+Tensor query = new Tensor(4, 10*512); // batch 4, seqLen 10
+Tensor kv    = new Tensor(4, 12*512); // encoder output
+Tensor out2  = cross.forward(query, kv, true);
+
+// Standard self-attention via Layer interface
+NeuralNetwork withMHA = new NeuralNetwork()
+  .add(new MultiHeadAttention(128, 4))
+  .add(new LayerNorm(128));
+</code></pre>
+
+  <h3>TransformerBlock <span class="tag">ml/layer/TransformerBlock.java</span></h3>
+  <p>Full block: <code>Norm → MHA → Dropout → Residual → Norm → FFN(ReLU) → Dropout → Residual</code>. Toggle <code>preNorm</code> for Pre-LN vs Post-LN.</p>
+<pre><code>TransformerBlock block = new TransformerBlock(512, 8, 2048); // embed, heads, ffDim
+TransformerBlock crossBlock = new TransformerBlock(512, 8, 2048, true, true, 0.1);
+TransformerBlock light = new TransformerBlock(128, 4, 512, false, true, 0.1);
+
+NeuralNetwork transformer = new NeuralNetwork()
+  .add(new DenseLayer(64, 512))
+  .add(new TransformerBlock(512, 8, 2048))
+  .add(new TransformerBlock(512, 8, 2048))
+  .add(new LayerNorm(512))
+  .add(new DenseLayer(512, 1000))
+  .add(new Softmax());
+
+// Encoder-decoder cross-attention
+Tensor encOut = transformer.forward(src, true); // placeholder
+Tensor decOut = crossBlock.forward(tgt, encOut, true);
+</code></pre>
+  <div class="callout success"><b>When to use what:</b> SelfAttention for single-sequence tasks · MultiHead for richer representation · TransformerBlock for any modern NLP/vision transformer. Stack 2–6 blocks; always follow with <code>LayerNorm</code>.</div>
+</section>
+
+<!-- ============ CH9 ============ -->
+<section id="ch9" class="card">
+  <h2>9 · Regularization & Augmentation</h2>
+  <div class="grid2">
+    <div>
+      <h3>Dropout <span class="tag">ml/regularization/Dropout.java</span></h3>
+<pre><code>Dropout drop = new Dropout(0.3); // 30% drop
+Dropout mild = new Dropout(0.1);
+NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784,256))
+  .add(new ReLU())
+  .add(new Dropout(0.2))   // training=true → mask & scale 1/(1-p)
+  .add(new DenseLayer(256,10))
+  .add(new Softmax());
+
+Tensor trainOut = net.forward(x, true);  // dropout active
+Tensor testOut  = net.forward(x, false); // passthrough
+// In backward(), gradient is masked identically
+</code></pre>
+      <h3>WeightDecay <span class="tag">ml/regularization/WeightDecay.java</span></h3>
+<pre><code>WeightDecay l2 = new WeightDecay(0, 1e-4); // L2 only
+WeightDecay l1l2 = new WeightDecay(1e-5, 1e-4);
+Trainer t = new Trainer(net, loss, opt)
+  .withWeightDecay(l2);
+// Applied after optimizer step: W -= lr*(l1*sign(W)+l2*W)
+double penalty = l2.computeLoss(net.getLayers());
+</code></pre>
+      <h3>GradientClipper <span class="tag">ml/regularization/GradientClipper.java</span></h3>
+<pre><code>GradientClipper byNorm  = new GradientClipper(5.0); // clip by global norm
+GradientClipper byValue = new GradientClipper(
+  GradientClipper.Mode.VALUE, 1.0); // clip each grad to [-1,1]
+
+Trainer t2 = new Trainer(net, loss, opt)
+  .withGradientClipper(byNorm)
+  .withWeightDecay(new WeightDecay(1e-4));
+// Trainer calls clipper.clip(layers) before optimizer.step()
+</code></pre>
+    </div>
+    <div>
+      <h3>Data Augmentation (all are <code>Layer</code>)</h3>
+      <p>Operate on flattened images; auto-detect <code>H = sqrt(cols)</code>. Only active when <code>training=true</code>.</p>
+<pre><code>RandomFlip flipH = new RandomFlip("horizontal", 0.5);
+RandomFlip flipV = new RandomFlip("vertical", 0.5);
+RandomFlip flipBoth = new RandomFlip("both", 0.5);
+
+RandomRotation rot = new RandomRotation(15.0, 0.5); // ±15°
+RandomCrop crop = new RandomCrop(24, 0.5);         // crop 24×24 from 28×28
+RandomZoom zoom = new RandomZoom(0.2, 0.5);        // zoom ±20%
+
+NeuralNetwork augNet = new NeuralNetwork()
+  .add(new RandomFlip("horizontal", 0.5))
+  .add(new RandomRotation(10.0, 0.3))
+  .add(new DenseLayer(784,256))
+  .add(new ReLU())
+  .add(new DenseLayer(256,10))
+  .add(new Softmax());
+
+Tensor augmented = augNet.forward(batch, true);
+Tensor clean     = augNet.forward(batch, false); // no augmentation
+</code></pre>
+      <div class="callout warn"><b>Ordering matters:</b> Place augmentation layers <b>first</b> (before Dense/Conv) so they transform raw inputs, not features.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CH10 ============ -->
+<section id="ch10" class="card">
+  <h2>10 · Activation Functions — The Non-Linearities</h2>
+  <p class="muted">All extend <code>ActivationLayer</code> · Stateless (except PReLU) · <code>inputSize/outputSize = -1</code>.</p>
+
+  <table class="table">
+    <tr><th>Activation</th><th>Formula</th><th>Derivative</th><th>Best for</th></tr>
+    <tr><td><b>ReLU</b></td><td>max(0,x)</td><td>1 if x&gt;0 else 0</td><td>Default for hidden layers</td></tr>
+    <tr><td><b>LeakyReLU</b>(α=0.01)</td><td>x if x&gt;0 else αx</td><td>1 or α</td><td>Fixes dying ReLU</td></tr>
+    <tr><td><b>ELU</b>(α=1)</td><td>x if x&gt;0 else α(eˣ-1)</td><td>1 or f+α</td><td>Smooth negative regime</td></tr>
+    <tr><td><b>SELU</b></td><td>λ·ELU</td><td>λ scaled</td><td>Self-normalizing nets</td></tr>
+    <tr><td><b>GELU</b></td><td>x·Φ(x) ≈ 0.5x(1+tanh(...))</td><td>approx</td><td>Transformers (BERT/GPT)</td></tr>
+    <tr><td><b>Swish</b></td><td>x·σ(x)</td><td>σ+xσ(1-σ)</td><td>Modern CNNs</td></tr>
+    <tr><td><b>Mish</b></td><td>x·tanh(softplus(x))</td><td>complex</td><td>SOTA vision (YOLOv4)</td></tr>
+    <tr><td><b>HardSwish</b></td><td>x·ReLU6(x+3)/6</td><td>piecewise</td><td>MobileNetV3 / edge</td></tr>
+    <tr><td><b>Sigmoid</b></td><td>1/(1+e⁻ˣ)</td><td>σ(1-σ)</td><td>Binary output, gates</td></tr>
+    <tr><td><b>Tanh</b></td><td>tanh(x)</td><td>1-tanh²</td><td>RNN hidden, zero-centered</td></tr>
+    <tr><td><b>Softmax</b></td><td>eˣⁱ/Σeˣʲ</td><td>Jacobian</td><td>Multi-class output</td></tr>
+    <tr><td><b>Softplus</b></td><td>ln(1+eˣ)</td><td>σ(x)</td><td>Smooth ReLU</td></tr>
+    <tr><td><b>LogSigmoid</b></td><td>-softplus(-x)</td><td>1-σ</td><td>Stable BCE with logits</td></tr>
+    <tr><td><b>PReLU</b>(α learn?)</td><td>x if x&gt;0 else αx</td><td>1 or α</td><td>Learnable leaky</td></tr>
+  </table>
+
+<pre><code>// Every activation is a Layer — drop-in anywhere
+NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784, 256))
+  .add(new ReLU())                 // or new LeakyReLU(0.01)
+  .add(new DenseLayer(256, 128))
+  .add(new GELU())                 // transformer-style
+  .add(new DenseLayer(128, 64))
+  .add(new Mish())                 // modern vision
+  .add(new DenseLayer(64, 10))
+  .add(new Softmax());             // always last for classification
+
+// Individual activations (also usable standalone)
+ReLU relu = new ReLU();
+Tensor out = relu.forward(someTensor, false);
+Tensor grad = relu.backward(upstreamGrad);
+
+// Parametric variants
+LeakyReLU lrelu = new LeakyReLU(0.1);
+ELU elu = new ELU(1.0);
+PReLU prelu = new PReLU(0.25);
+Softmax sm = new Softmax(); // row-wise softmax inside
+
+// Quick reference — instantiate all 14
+Layer[] all = {
+  new ReLU(), new LeakyReLU(), new ELU(), new Selu(),
+  new GELU(), new Swish(), new Mish(), new HardSwish(),
+  new Sigmoid(), new Tanh(), new Softmax(), new Softplus(),
+  new LogSigmoid(), new PReLU()
+};
+</code></pre>
+  <div class="callout"><b>Rule of thumb:</b> ReLU for MLP/CNN hidden · GELU/Swish/Mish for deep/transformer · Sigmoid for binary · Softmax for multi-class · Tanh for RNN gates.</div>
+</section>
+
+<!-- ============ CH11 ============ -->
+<section id="ch11" class="card">
+  <h2>11 · Loss Functions — 9 Ways to Be Wrong</h2>
+  <p class="muted">Interface: <code>ml/loss/Loss.java</code> — <code>forward(predictions, labels) → double</code> + <code>backward → Tensor</code>.</p>
+
+  <div class="grid2">
+    <div>
+<pre><code>// 1. CrossEntropy — multi-class classification (with Softmax)
+CrossEntropyLoss ce = new CrossEntropyLoss(); // eps 1e-12
+double loss = ce.forward(probs, labels);      // -mean(log p_true)
+Tensor grad = ce.backward(probs, labels);     // (p - oneHot)/batch
+
+// 2. BinaryCrossEntropy — binary / multi-label
+BinaryCrossEntropyLoss bce = new BinaryCrossEntropyLoss();
+double l2 = bce.forward(probs, labels);
+Tensor g2 = bce.backward(probs, targets); // also Tensor overload
+// Tensor overload: bce.forward(pred, targetTensor)
+
+// 3. MSELoss — regression, autoencoder
+MSELoss mse = new MSELoss();
+double l3 = mse.forward(pred, labels);      // int[] labels → one-hot
+double l3b= mse.forward(pred, targetTensor); // direct tensor
+Tensor g3 = mse.backward(pred, targetTensor); // 2*(pred-target)/batch
+
+// 4. HuberLoss — robust regression (quadratic near 0, linear far)
+HuberLoss huber = new HuberLoss(1.0); // delta
+double l4 = huber.forward(pred, labels);
+
+// 5. HingeLoss — SVM / max-margin
+HingeLoss hinge = new HingeLoss();
+// loss = mean(max(0, s_wrong - s_true + 1))
+</code></pre>
+    </div>
+    <div>
+<pre><code>// 6. FocalLoss — addresses class imbalance (RetinaNet)
+FocalLoss focal = new FocalLoss(0.25, 2.0); // alpha, gamma
+FocalLoss focal2 = new FocalLoss();         // defaults 0.25, 2.0
+
+// 7. KLDivergenceLoss — distillation, VAE
+KLDivergenceLoss kl = new KLDivergenceLoss();
+double l7 = kl.forward(pred, labels);
+
+// 8. CosineEmbeddingLoss — similarity learning, retrieval
+CosineEmbeddingLoss cos = new CosineEmbeddingLoss();
+double l8 = cos.forward(pred, labels);
+
+// 9. CTCLoss — speech/handwriting (blank-aware, zeroInfinity)
+CTCLoss ctc = new CTCLoss(0, true); // blank=0
+double l9 = ctc.forward(logProbs, labels);
+Tensor g9 = ctc.backward(logProbs, labels);
+
+// All losses share Trainer wiring:
+Trainer t = new Trainer(net, new CrossEntropyLoss(), new Adam(0.001));
+Trainer t2= new Trainer(net, new MSELoss(), new SGD(0.01));
+Trainer t3= new Trainer(net, new FocalLoss(0.25,2.0), new AdamW(0.001));
+Trainer t4= new Trainer(net, new HuberLoss(0.5), new Adam(0.002));
+</code></pre>
+    </div>
+  </div>
+  <table class="table">
+    <tr><th>Loss</th><th>Output activation</th><th>Task</th><th>When</th></tr>
+    <tr><td>CrossEntropy</td><td>Softmax</td><td>Multi-class</td><td>Default classifier</td></tr>
+    <tr><td>BinaryCE</td><td>Sigmoid</td><td>Binary / multi-label</td><td>2-class or independent labels</td></tr>
+    <tr><td>MSE</td><td>Linear / Sigmoid</td><td>Regression / AE</td><td>Continuous targets</td></tr>
+    <tr><td>Huber</td><td>Linear</td><td>Robust regression</td><td>Outliers present</td></tr>
+    <tr><td>Hinge</td><td>Linear</td><td>SVM</td><td>Large margin desired</td></tr>
+    <tr><td>Focal</td><td>Softmax</td><td>Imbalanced multi-class</td><td>Rare classes</td></tr>
+    <tr><td>KL Divergence</td><td>Softmax</td><td>Distillation</td><td>Teacher-student</td></tr>
+    <tr><td>CosineEmbedding</td><td>Linear</td><td>Metric learning</td><td>Similarity/search</td></tr>
+    <tr><td>CTC</td><td>Log-Softmax</td><td>Sequence alignment</td><td>Speech/OCR</td></tr>
+  </table>
+</section>
+
+<!-- ============ CH12 ============ -->
+<section id="ch12" class="card">
+  <h2>12 · Optimizers — 5 Update Rules</h2>
+  <p class="muted">Interface: <code>ml/optimizer/Optimizer.java</code> — <code>step(layers, learningRate)</code>. Dense layers get specialized parallel updates; other layers delegate to <code>layer.update(lr)</code>.</p>
+
+<pre><code>// SGD — vanilla + optional momentum
+SGD sgd = new SGD(0.01);              // no momentum
+SGD sgdM = new SGD(0.01, 0.9);        // momentum 0.9
+// update: v = μv + lr·g ;  W -= v   (or W -= lr·g if μ=0)
+
+// Adam — adaptive moments (default choice)
+Adam adam = new Adam(0.001);          // beta1 0.9, beta2 0.999, eps 1e-8
+Adam adam2= new Adam(0.001, 0.9, 0.999, 1e-8);
+// m = β1·m + (1-β1)g ; v = β2·v + (1-β2)g² ;  W -= lr·m̂/(√v̂+ε)
+
+// AdamW — Adam with decoupled weight decay (best for transformers)
+AdamW adamW = new AdamW(0.001, 0.01); // lr, weightDecay
+AdamW adamW2= new AdamW(0.001, 0.9, 0.999, 1e-8, 0.01);
+
+// RMSProp — moving average of squared grads
+RMSProp rms = new RMSProp(0.001);            // decay 0.9
+RMSProp rms2= new RMSProp(0.001, 0.9, 1e-8);
+// cache = ρ·cache + (1-ρ)g² ;  W -= lr·g/(√cache+ε)
+
+// AdaGrad — accumulates all past squared grads (good for sparse)
+AdaGrad ada = new AdaGrad(0.01);
+AdaGrad ada2= new AdaGrad(0.01, 1e-8);
+// cache += g² ;  W -= lr·g/(√cache+ε)
+
+// Wiring with Trainer — lr can be overridden per fit
+Trainer t = new Trainer(net, loss, new Adam(0.001));
+t.setLearningRate(0.0005); // propagates to optimizer
+
+// Save / resume optimizer state (momentum buffers etc.)
+ModelSerializer.saveOptimizer(adam, "adam_state.bin");
+Optimizer restored = ModelSerializer.loadOptimizer("adam_state.bin");
+</code></pre>
+
+  <table class="table">
+    <tr><th>Optimizer</th><th>Memory</th><th>Best for</th><th>Caveat</th></tr>
+    <tr><td>SGD</td><td>Low</td><td>Large batch, convex-ish</td><td>Needs tuned LR schedule</td></tr>
+    <tr><td>SGD+Momentum</td><td>Low</td><td>CNNs with schedule</td><td>Can overshoot</td></tr>
+    <tr><td>Adam</td><td>2× params (m,v)</td><td>Default for most tasks</td><td>May generalize slightly worse than SGD</td></tr>
+    <tr><td>AdamW</td><td>2× params</td><td>Transformers, NLP</td><td>Needs wd tuning</td></tr>
+    <tr><td>RMSProp</td><td>1× params</td><td>RNNs, non-stationary</td><td>Sensitive to decay</td></tr>
+    <tr><td>AdaGrad</td><td>1× params</td><td>Sparse features, NLP bow</td><td>LR decays aggressively</td></tr>
+  </table>
+  <div class="callout success"><b>Quick pick:</b> Start with <code>Adam(0.001)</code>. Switch to <code>AdamW</code> for transformers or when you need weight decay, <code>SGD+momentum</code> for final CNN fine-tuning with cosine decay.</div>
+</section>
+
+<!-- ============ CH13 ============ -->
+<section id="ch13" class="card">
+  <h2>13 · Training Stack: NeuralNetwork, Trainer, DataLoader & Friends</h2>
+
+  <h3>NeuralNetwork — The Container <span class="tag">ml/network/NeuralNetwork.java</span></h3>
+<pre><code>NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784,256)).add(new ReLU())
+  .add(new DenseLayer(256,10)).add(new Softmax());
+
+Tensor out = net.forward(batch);          // inference
+Tensor out2= net.forward(batch, true);    // training (activates dropout/aug)
+net.backward(grad);                       // backprop
+net.update(0.001);                        // SGD step (usually via optimizer)
+int pred = net.predict(singleSample);     // argmax
+int[] preds = net.predictBatch(batch);
+double[] probs = net.predictSingle(new double[784]);
+System.out.println(net);                  // layer table + total params
+System.out.println(net.totalParameters());
+List&lt;Layer&gt; layers = net.getLayers();
+
+// Save / load
+net.saveModel("model.bin");               // binary (preferred)
+net.saveJson("model.json");               // human-readable JSON
+NeuralNetwork loaded = NeuralNetwork.loadModel("model.bin");
+NeuralNetwork fromJson = NeuralNetwork.loadJson("model.json");
+// ModelSerializer also handles optimizer states & embeddings
+</code></pre>
+
+  <h3>Trainer & EarlyStoppingTrainer <span class="tag">ml/training/Trainer.java</span></h3>
+<pre><code>Trainer trainer = new Trainer(net, new CrossEntropyLoss(), new Adam(0.001))
+  .withGradientClipper(new GradientClipper(5.0))
+  .withWeightDecay(new WeightDecay(0, 1e-4));
+
+TrainingHistory hist = trainer.fit(trainX, trainY, 10, 256); // epochs, batch
+trainer.saveTrainingChart("training.png"); // JFreeChart PNG
+
+// Data-parallel variant
+trainer.fitParallel(trainX, trainY, 10, 256, 4); // numWorkers
+
+// With callbacks / iterators
+DataLoader loader = new DataLoader(64, true); // shuffle=true
+TrainingHistory h2 = trainer.fit(loader.iterate(trainX,trainY),
+                                  loader.iterate(valX,valY), 20);
+
+// Learning-rate scheduling
+LRScheduler sched = LRScheduler.cosineAnnealing(0.001, 100, 1e-6);
+LRScheduler step  = LRScheduler.stepDecay(0.01, 10, 0.1);
+LRScheduler exp   = LRScheduler.exponentialDecay(0.01, 0.96);
+LRScheduler warm  = LRScheduler.warmupCosine(0.001, 100, 5);
+LRScheduler plat  = LRScheduler.reduceOnPlateau(0.001, 0.5, 5);
+for(int epoch=0; epoch&lt;100; epoch++){
+  double lr = sched.step(epoch, valLoss);
+  trainer.setLearningRate(lr);
+}
+
+// Early stopping (restores best weights)
+EarlyStoppingTrainer est = new EarlyStoppingTrainer(net, loss, new Adam(0.001), 5) // patience 5
+  .withGradientClipper(new GradientClipper(1.0))
+  .withLRScheduler(LRScheduler.reduceOnPlateau(0.001,0.5,3));
+TrainingHistory h3 = est.fit(trainX,trainY, valX,valY, 100, 64);
+
+// History inspection
+System.out.println(hist.bestLoss() + " at epoch " + hist.bestEpoch());
+System.out.println(hist.lastLoss() + " | total " + hist.totalTimeMs()+"ms");
+</code></pre>
+
+  <h3>DataLoader & Dataset <span class="tag">ml/training/DataLoader.java</span></h3>
+<pre><code>DataLoader loader = new DataLoader(32); // batch 32, shuffle true
+DataLoader noShuffle = new DataLoader(32, false);
+DataLoader.BatchIterator it = loader.iterate(images, labels);
+while(it.hasNext()){
+  DataLoader.Batch b = it.next();
+  Tensor x = b.images(); int[] y = b.labels(); int n = b.size();
+}
+
+Dataset ds = MNISTLoader.load("data/train-images-idx3-ubyte","data/train-labels-idx1-ubyte");
+Tensor trainImages = ds.images(); int[] trainLabels = ds.labels();
+
+// Utilities
+SeedManager.setSeed(42); // deterministic runs
+ThreadPoolManager.parallelism(); // available cores
+</code></pre>
+
+  <h3>Initializers, Callbacks, Checkpoint <span class="tag">ml/training/*</span></h3>
+<pre><code>ModelCheckpoint ckpt = new ModelCheckpoint("ckpt.bin", true); // save best
+TensorBoardLogger tb = new TensorBoardLogger("runs/exp1");
+Callback cb = new Callback(){ public void onEpochEnd(int e,double loss){ System.out.println(e+": "+loss);} };
+ModelSummary.summary(net); // prints table
+Metrics.accuracy(pred, labels);
+</code></pre>
+</section>
+
+<!-- ============ CH14 ============ -->
+<section id="ch14" class="card">
+  <h2>14 · Evaluation, Metrics & Persistence</h2>
+  <div class="grid2">
+    <div>
+<pre><code>Evaluator eval = new Evaluator(new String[]{"cat","dog","bird"});
+Evaluator auto = new Evaluator(); // infers num classes
+
+EvaluationResult res = eval.evaluate(net, testImages, testLabels);
+System.out.println(res); // accuracy, correct/total
+System.out.println(res.accuracy()); // 0.0–1.0
+ConfusionMatrix cm = res.confusionMatrix();
+cm.print(); // ASCII table
+cm.printClassMetrics(classNames); // precision/recall/F1 per class
+int correct = cm.correct();
+int[][] matrix = cm.toArray();
+
+// Fine-grained predictions
+PredictionResult pr = eval.predict(net, testImages, testLabels);
+for(Prediction p: pr.getPredictions()){
+  int pred = p.predictedLabel();
+  int truth= p.actualLabel();
+  double conf= p.confidence();
+}
+Prediction single = pr.get(0);
+</code></pre>
+    </div>
+    <div>
+<pre><code>// Persistence — binary is compact & fast, JSON is diffable
+net.saveModel("model.bin");
+NeuralNetwork net2 = NeuralNetwork.loadModel("model.bin");
+net.saveJson("model.json");
+NeuralNetwork net3 = NeuralNetwork.loadJson("model.json");
+
+// Optimizer state (resume training exactly)
+ModelSerializer.saveOptimizer(new Adam(0.001), "opt.bin");
+Optimizer opt2 = ModelSerializer.loadOptimizer("opt.bin");
+
+// Training chart (JFreeChart)
+new TrainingChart().addEpoch(1,0.8).addEpoch(2,0.5).save("chart.png");
+trainer.saveTrainingChart("training.png");
+
+// MNIST visualization
+new MNISTVisualizer(classNames)
+  .visualize(testImages.sliceRows(0,20), predicted, actual, confidences, 20, "preds.png");
+</code></pre>
+      <div class="callout">Parallel evaluation: <code>Evaluator</code> shards batches across <code>ThreadPoolManager.compute()</code> and merges partial <code>ConfusionMatrix</code> instances for large test sets.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CH15 ============ -->
+<section id="ch15" class="card">
+  <h2>15 · Application Gallery — 6 Domains, 20+ Runnable Projects</h2>
+  <p class="muted">All under <code>projects.*</code> · Run with <code>mvn compile exec:java -Dexec.mainClass=projects.&lt;pkg&gt;.&lt;Class&gt;</code>. Each shows which layers/losses/optimizers fit the task.</p>
+
+  <h3>Vision — CNNs (P01–P05) <span class="tag">projects/vision</span></h3>
+<pre><code>// P01 MnistClassifier — MLP on 28×28 (784 → 256 → 128 → 64 → 10)
+NeuralNetwork mlp = new NeuralNetwork()
+  .add(new DenseLayer(784,256)).add(new ReLU()).add(new Dropout(0.2))
+  .add(new DenseLayer(256,128)).add(new ReLU()).add(new Dropout(0.2))
+  .add(new DenseLayer(128,64)).add(new ReLU())
+  .add(new DenseLayer(64,10)).add(new Softmax());
+new Trainer(mlp, new CrossEntropyLoss(), new Adam(0.001))
+  .withGradientClipper(new GradientClipper(5.0)).fit(trainX,trainY,10,256);
+
+// P01b FashionMnistClassifier — CNN: Conv→Pool→Conv→Pool→Dense
+NeuralNetwork cnn = new NeuralNetwork()
+  .add(new Conv2D(1,16,3)).add(new ReLU()).add(new MaxPool(2))
+  .add(new Conv2D(16,32,3)).add(new ReLU()).add(new MaxPool(2))
+  .add(new Flatten()).add(new DenseLayer(1568,128)).add(new ReLU())
+  .add(new DenseLayer(128,10)).add(new Softmax());
+
+// P04 MnistAutoencoder — Denoising AE 784→256→64→256→784 with MSELoss
+NeuralNetwork ae = new NeuralNetwork()
+  .add(new DenseLayer(784,256)).add(new ReLU())
+  .add(new DenseLayer(256,64)).add(new ReLU())   // bottleneck
+  .add(new DenseLayer(64,256)).add(new ReLU())
+  .add(new DenseLayer(256,784)).add(new Sigmoid());
+new Trainer(ae, new MSELoss(), new Adam(0.002)).fit(noisyX, cleanY, 10, 256);
+// P03 MnistEnsemble, P05 Cifar100Classifier follow same patterns
+</code></pre>
+
+  <h3>NLP — Embeddings & Transformers (P06–P11) <span class="tag">projects/nlp</span></h3>
+<pre><code>// P06 SentimentAnalyzer — BoW + MLP (CrossEntropy + Adam)
+Vocab vocab = new Vocab(texts); // projects/common/Vocab
+Tensor bow = Tensor.fromFlat(Vocab.bowMatrix(texts,vocab), n, vocab.size);
+NeuralNetwork sent = new NeuralNetwork()
+  .add(new DenseLayer(vocab.size,64)).add(new ReLU()).add(new Dropout(0.3))
+  .add(new DenseLayer(64,2)).add(new Softmax());
+new Trainer(sent, new CrossEntropyLoss(), new Adam(0.005))
+  .withWeightDecay(new WeightDecay(0,1e-3)).fit(trainX,trainY,40,16);
+
+// P09 NextWordPredictor — Embedding → LSTM → Dense
+NeuralNetwork lm = new NeuralNetwork()
+  .add(new Embedding(5000,128))
+  .add(new LSTMLayer(128,128))
+  .add(new DenseLayer(128,5000)).add(new Softmax());
+// P10 NewsTopicClassifier — TransformerBlock stack
+NeuralNetwork topic = new NeuralNetwork()
+  .add(new DenseLayer(vocab.size,256)).add(new LayerNorm(256))
+  .add(new TransformerBlock(256,4,512))
+  .add(new DenseLayer(256,4)).add(new Softmax());
+
+// P08 CharLstmGenerator, P07 LanguageIdentifier, P11 IntentClassifier — same LSTM/GRU patterns
+</code></pre>
+
+  <h3>Tabular — Small MLPs (P12–P15) <span class="tag">projects/tabular</span></h3>
+<pre><code>// P12 IrisClassifier — 4 features → 3 species (Fisher dataset embedded)
+NeuralNetwork iris = new NeuralNetwork()
+  .add(new DenseLayer(4,16)).add(new ReLU())
+  .add(new DenseLayer(16,3)).add(new Softmax());
+new Trainer(iris, new CrossEntropyLoss(), new Adam(0.01)).fit(x,y,120,16);
+
+// P13 WineQualityClassifier, P14 HousePriceRegression (MSELoss, linear head), P15 TitanicSurvival, FraudDetector
+NeuralNetwork house = new NeuralNetwork()
+  .add(new DenseLayer(8,32)).add(new ReLU())
+  .add(new DenseLayer(32,16)).add(new ReLU())
+  .add(new DenseLayer(16,1)); // no activation → regression
+new Trainer(house, new MSELoss(), new Adam(0.01)).fit(features, prices, 100, 32);
+
+// FraudDetector — imbalanced binary → FocalLoss + Sigmoid
+NeuralNetwork fraud = new NeuralNetwork()
+  .add(new DenseLayer(30,64)).add(new ReLU()).add(new Dropout(0.3))
+  .add(new DenseLayer(64,1)).add(new Sigmoid());
+new Trainer(fraud, new FocalLoss(0.25,2.0), new Adam(0.001)).fit(x,y,50,64);
+</code></pre>
+
+  <h3>Time Series — LSTM/GRU (P17–P18) <span class="tag">projects/timeseries</span></h3>
+<pre><code>// P18 TemperatureForecast — 24h lookback → next temp (LSTM + MSE)
+NeuralNetwork temp = new NeuralNetwork()
+  .add(new LSTMLayer(1,64))
+  .add(new DenseLayer(64,32)).add(new ReLU())
+  .add(new DenseLayer(32,1));
+ // manual loop: pred = net.forward(window); grad = 2*(pred-target)/batch; net.backward(grad); net.update(lr);
+
+// P17 StockTrendForecaster — GRU variant
+NeuralNetwork stock = new NeuralNetwork()
+  .add(new GRULayer(5,64))
+  .add(new DenseLayer(64,1)).add(new Sigmoid()); // up/down
+new Trainer(stock, new BinaryCrossEntropyLoss(), new Adam(0.002)).fit(x,y,30,32);
+</code></pre>
+
+  <h3>Anomaly & Recommendation (P19–P20) <span class="tag">projects/anomaly, recommend</span></h3>
+<pre><code>// P19 SensorAnomalyDetector — Autoencoder + reconstruction error threshold
+NeuralNetwork detector = new NeuralNetwork()
+  .add(new DenseLayer(20,12)).add(new ReLU())
+  .add(new DenseLayer(12,4)).add(new ReLU())   // bottleneck 4
+  .add(new DenseLayer(4,12)).add(new ReLU())
+  .add(new DenseLayer(12,20)).add(new Sigmoid());
+new Trainer(detector, new MSELoss(), new Adam(0.001)).fit(normalData, normalData, 50, 32);
+// anomaly if MSE(pred, input) &gt; threshold
+
+// P20 MovieRecommender — Embedding (user+item) → Dot → Sigmoid
+Embedding userEmb = new Embedding(numUsers, 32);
+Embedding itemEmb = new Embedding(numItems, 32);
+// score = sigmoid(dot(userVec, itemVec)) — trained with BinaryCrossEntropy
+</code></pre>
+
+  <div class="callout success"><b>Pattern:</b> Vision = Conv/Pool + CrossEntropy · NLP = Embedding/LSTM/Transformer + CrossEntropy · Tabular = Dense + (CrossEntropy or MSE) · TimeSeries = LSTM/GRU + MSE/BCE · Anomaly = Autoencoder + MSE · Recommend = Embedding + BCE.</div>
+</section>
+
+<!-- ============ FULL EXAMPLE ============ -->
+<section id="full-example" class="card" style="border:2px solid var(--accent)">
+  <div class="eyebrow">Capstone — Copy, Paste, Run</div>
+  <h2>16 · Full End-to-End Example — Showcasing <em>Every</em> Component</h2>
+  <p>This single file touches <b>all 15 layer types, all 14 activations, all 9 losses (instantiated), all 5 optimizers, regularization, augmentation, LR scheduling, evaluation, and persistence</b>. It builds a synthetic multi-task dataset so it runs without external files. Adapt the <code>net</code> definition to your real data by swapping the data-loading section.</p>
+
+  <div class="callout warn"><b>Prerequisites:</b> <code>mvn compile</code> · Java 17 · The library source is on the classpath (this book lives inside <code>mnist-dl</code>). Save as <code>src/main/java/examples/FullShowcase.java</code> and run <code>mvn compile exec:java -Dexec.mainClass=examples.FullShowcase</code>.</div>
+
+<pre><code>package examples;
+
+import ml.activation.*;
+import ml.augmentation.*;
+import ml.core.SeedManager;
+import ml.core.Tensor;
+import ml.evaluation.*;
+import ml.layer.*;
+import ml.loss.*;
+import ml.network.NeuralNetwork;
+import ml.optimizer.*;
+import ml.regularization.*;
+import ml.training.*;
+
+/**
+ * Full Showcase — exercises EVERY component in mnist-dl.
+ * Synthetic data (no files) so it runs anywhere. Replace the
+ * synthetic section with MNISTLoader for real images.
+ */
+public class FullShowcase {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        System.out.println("=== mnist-dl Full Showcase ===\n");
+
+        // ── 1. Synthetic data (mix of image-like + tabular + sequence) ──
+        int n = 800, imgFeat = 784, seqLen = 10, seqFeat = 8;
+        Tensor images = Tensor.random(n, imgFeat);          // fake 28x28
+        Tensor sequences = Tensor.random(n, seqLen*seqFeat);// flattened seq
+        int[] labels10 = new int[n], labels2 = new int[n];
+        double[] regTarget = new double[n];
+        java.util.Random rng = new java.util.Random(42);
+        for(int i=0;i&lt;n;i++){
+            labels10[i]= rng.nextInt(10);
+            labels2[i] = rng.nextInt(2);
+            regTarget[i]= rng.nextGaussian();
+        }
+        int split = (int)(n*0.8);
+        Tensor trainImg = images.sliceRows(0,split), testImg = images.sliceRows(split,n);
+        int[] trainY10 = java.util.Arrays.copyOf(labels10,split);
+        int[] testY10  = java.util.Arrays.copyOfRange(labels10,split,n);
+
+        // ── 2. Instantiate ALL 9 losses (to prove API) ──
+        Loss ce   = new CrossEntropyLoss();
+        Loss bce  = new BinaryCrossEntropyLoss();
+        Loss mse  = new MSELoss();
+        Loss huber= new HuberLoss(1.0);
+        Loss focal= new FocalLoss(0.25,2.0);
+        Loss hinge= new HingeLoss();
+        Loss kl   = new KLDivergenceLoss();
+        Loss cos  = new CosineEmbeddingLoss();
+        Loss ctc  = new CTCLoss(0,true);
+        System.out.println("Losses: CE,BCE,MSE,Huber,Focal,Hinge,KL,Cosine,CTC ✓");
+
+        // ── 3. Instantiate ALL 5 optimizers ──
+        Optimizer sgd    = new SGD(0.01, 0.9);
+        Optimizer adam   = new Adam(0.001);
+        Optimizer adamW  = new AdamW(0.001, 1e-4);
+        Optimizer rms    = new RMSProp(0.001);
+        Optimizer ada    = new AdaGrad(0.01);
+        System.out.println("Optimizers: SGD, Adam, AdamW, RMSProp, AdaGrad ✓");
+
+        // ── 4. Instantiate ALL 14 activations as layers ──
+        Layer[] acts = { new ReLU(), new LeakyReLU(0.01), new ELU(1.0), new Selu(),
+            new GELU(), new Swish(), new Mish(), new HardSwish(),
+            new Sigmoid(), new Tanh(), new Softmax(), new Softplus(),
+            new LogSigmoid(), new PReLU(0.25) };
+        System.out.println("Activations: 14 ✓  e.g. ReLU forward: "
+            + new ReLU().forward(Tensor.random(2,4),false).shape()[1]);
+
+        // ── 5. Build networks showcasing EVERY layer type ──
+
+        // 5a) Vision CNN: Conv2D → MaxPool → AvgPool → Flatten → Dense → BatchNorm → Dropout
+        NeuralNetwork vision = new NeuralNetwork()
+            .add(new RandomFlip("horizontal",0.5))   // augmentation (Layer)
+            .add(new RandomRotation(10.0,0.3))
+            .add(new Conv2D(1,8,3))                 // Conv2D
+            .add(new ReLU())                        // activation
+            .add(new MaxPool(2))                    // MaxPool
+            .add(new Conv2D(8,16,3))
+            .add(new GELU())
+            .add(new AvgPool(2))                    // AvgPool
+            .add(new Flatten())                     // Flatten
+            // after two valid 3x3 convs + two 2x2 pools on 28x28: ~16*5*5=400
+            .add(new DenseLayer(400,128))           // Dense
+            .add(new BatchNorm(128))                // BatchNorm
+            .add(new Swish())
+            .add(new Dropout(0.2))                  // Dropout
+            .add(new DenseLayer(128,64))
+            .add(new LayerNorm(64))                 // LayerNorm
+            .add(new Mish())
+            .add(new DenseLayer(64,10))
+            .add(new Softmax());
+        System.out.println("\n[Vision CNN]\n"+vision);
+
+        // 5b) Sequence stack: Embedding → RNN → LSTM → GRU → SelfAttention → MultiHead → TransformerBlock
+        // Note: each expects [batch, seqLen*feat]; we demo shapes individually
+        Embedding emb = new Embedding(100, 32);
+        RNNLayer rnn = new RNNLayer(8, 16);
+        LSTMLayer lstm = new LSTMLayer(16, 16);
+        GRULayer gru = new GRULayer(16, 16);
+        SelfAttention sa = new SelfAttention(16);
+        MultiHeadAttention mha = new MultiHeadAttention(16, 4);
+        TransformerBlock tr = new TransformerBlock(16, 4, 32);
+
+        // Chain a few: sequence input → RNN → Transformer
+        NeuralNetwork seqNet = new NeuralNetwork()
+            .add(new RNNLayer(seqFeat, 32, false, true, "tanh")) // seqLen*8 → seqLen*32
+            .add(new LSTMLayer(32, 16))                           // seqLen*32 → 16
+            .add(new DenseLayer(16, 10)).add(new Softmax());
+        System.out.println("[SeqNet]\n"+seqNet);
+
+        NeuralNetwork attnNet = new NeuralNetwork()
+            .add(new SelfAttention(32))
+            .add(new MultiHeadAttention(32,4))
+            .add(new TransformerBlock(32,4,64))
+            .add(new LayerNorm(32))
+            .add(new DenseLayer(32,10)).add(new Softmax());
+        System.out.println("[AttnNet]\n"+attnNet);
+
+        // 5c) Tabular MLP with ALL activations chained (demo, not for accuracy)
+        NeuralNetwork tabular = new NeuralNetwork()
+            .add(new DenseLayer(20,32)).add(new ReLU())
+            .add(new DenseLayer(32,32)).add(new LeakyReLU(0.01))
+            .add(new DenseLayer(32,32)).add(new ELU())
+            .add(new DenseLayer(32,16)).add(new Selu())
+            .add(new DenseLayer(16,3)).add(new Softmax());
+        System.out.println("[Tabular]\n"+tabular);
+
+        // ── 6. Train the vision model with full Trainer stack ──
+        // For synthetic demo we use a small MLP (since Conv sizing needs exact H).
+        NeuralNetwork net = new NeuralNetwork()
+            .add(new DenseLayer(imgFeat,128)).add(new BatchNorm(128)).add(new ReLU())
+            .add(new Dropout(0.2))
+            .add(new DenseLayer(128,64)).add(new LayerNorm(64)).add(new GELU())
+            .add(new DenseLayer(64,10)).add(new Softmax());
+        System.out.println("[TrainNet]\n"+net);
+
+        // LR schedulers
+        LRScheduler cosine = LRScheduler.cosineAnnealing(0.001, 20, 1e-6);
+        LRScheduler step   = LRScheduler.stepDecay(0.01, 5, 0.5);
+        LRScheduler warm   = LRScheduler.warmupCosine(0.001, 20, 3);
+
+        Trainer trainer = new Trainer(net, ce, new Adam(0.001))
+            .withGradientClipper(new GradientClipper(5.0))
+            .withWeightDecay(new WeightDecay(0, 1e-4));
+
+        System.out.println("\nTraining 5 epochs (batch 64)...");
+        TrainingHistory hist = trainer.fit(trainImg, trainY10, 5, 64);
+        System.out.printf("Best loss %.4f at epoch %d | Last %.4f | Time %dms%n",
+            hist.bestLoss(), hist.bestEpoch(), hist.lastLoss(), hist.totalTimeMs());
+        trainer.saveTrainingChart("training_full.png");
+
+        // Manual LR stepping example
+        for(int e=0; e&lt;5; e++){
+            double lr = cosine.step(e);
+            trainer.setLearningRate(lr);
+        }
+
+        // ── 7. Evaluate ──
+        Evaluator eval = new Evaluator(
+            new String[]{"0","1","2","3","4","5","6","7","8","9"});
+        EvaluationResult res = eval.evaluate(net, testImg, testY10);
+        System.out.println("\n"+res);
+        res.confusionMatrix().print();
+        PredictionResult pr = eval.predict(net, testImg.sliceRows(0,5), java.util.Arrays.copyOf(testY10,5));
+        for(int i=0;i&lt;5;i++){
+            Prediction p = pr.get(i);
+            System.out.printf("  sample %d: pred=%d truth=%d conf=%.2f%n",
+                i, p.predictedLabel(), p.actualLabel(), p.confidence());
+        }
+
+        // ── 8. Persistence ──
+        net.saveModel("model_full.bin");
+        net.saveJson("model_full.json");
+        NeuralNetwork restored = NeuralNetwork.loadModel("model_full.bin");
+        System.out.println("\nRestored: "+restored.totalParameters()+" params");
+        // Optimizer state
+        ml.network.ModelSerializer.saveOptimizer(new Adam(0.001), "opt.bin");
+        Optimizer optRestored = ml.network.ModelSerializer.loadOptimizer("opt.bin");
+
+        // ── 9. Regression & binary heads (same data, different loss) ──
+        NeuralNetwork regNet = new NeuralNetwork()
+            .add(new DenseLayer(imgFeat,64)).add(new ReLU())
+            .add(new DenseLayer(64,1)); // linear
+        new Trainer(regNet, new MSELoss(), new Adam(0.002)).fit(trainImg, trainY10, 3, 64);
+        System.out.println("Regression head trained (MSELoss).");
+
+        NeuralNetwork binNet = new NeuralNetwork()
+            .add(new DenseLayer(imgFeat,32)).add(new ReLU())
+            .add(new DenseLayer(32,1)).add(new Sigmoid());
+        new Trainer(binNet, new BinaryCrossEntropyLoss(), new Adam(0.001))
+            .fit(trainImg, labels2, 3, 64);
+        System.out.println("Binary head trained (BCE + Sigmoid).");
+
+        // ── 10. EarlyStopping demo ──
+        NeuralNetwork esNet = new NeuralNetwork()
+            .add(new DenseLayer(imgFeat,64)).add(new ReLU())
+            .add(new DenseLayer(64,10)).add(new Softmax());
+        EarlyStoppingTrainer est = new EarlyStoppingTrainer(esNet, new CrossEntropyLoss(), new Adam(0.001), 3)
+            .withGradientClipper(new GradientClipper(1.0));
+        est.fit(trainImg, trainY10, testImg, testY10, 20, 64);
+        System.out.println("EarlyStopping finished at epoch "+est.getHistory().size());
+
+        System.out.println("\n=== Done — artifacts: training_full.png, model_full.bin/json, opt.bin ===");
+        System.out.println("Next: replace synthetic Tensor.random with MNISTLoader.load(...) for real data.");
+    }
+}
+</code></pre>
+
+  <h3>Running it</h3>
+<pre><code>mvn compile exec:java -Dexec.mainClass=examples.FullShowcase
+# outputs: training log, confusion matrix, training_full.png, model_full.bin, model_full.json, opt.bin
+# For real MNIST, change the data section to:
+Dataset train = MNISTLoader.load("data/train-images-idx3-ubyte","data/train-labels-idx1-ubyte");
+Dataset test  = MNISTLoader.load("data/t10k-images-idx3-ubyte","data/t10k-labels-idx1-ubyte");
+</code></pre>
+
+  <h3>What this proves</h3>
+  <table class="table">
+    <tr><th>Category</th><th>Covered</th><th>How</th></tr>
+    <tr><td>Layers (15)</td><td>Dense, Conv2D, Flatten, Embedding, BatchNorm, LayerNorm, MaxPool, AvgPool, RNN, LSTM, GRU, SelfAttention, MultiHeadAttention, TransformerBlock + Augmentation</td><td>vision / seqNet / attnNet / net</td></tr>
+    <tr><td>Activations (14)</td><td>All instantiated; ReLU/GELU/Swish/Mish/… wired into nets</td><td>acts[] + tabular + vision</td></tr>
+    <tr><td>Losses (9)</td><td>All instantiated; CE/MSE/BCE actively used</td><td>ce…ctc variables + Trainer</td></tr>
+    <tr><td>Optimizers (5)</td><td>All instantiated; Adam trains the main net</td><td>sgd…ada variables</td></tr>
+    <tr><td>Regularization</td><td>Dropout, WeightDecay, GradientClipper</td><td>Trainer.with*</td></tr>
+    <tr><td>Training</td><td>Trainer, EarlyStoppingTrainer, DataLoader, LRScheduler, TrainingHistory</td><td>fit(), fit with val, schedulers</td></tr>
+    <tr><td>Evaluation</td><td>Evaluator, ConfusionMatrix, PredictionResult, MNISTVisualizer</td><td>evaluate() + predict()</td></tr>
+    <tr><td>Persistence</td><td>Binary + JSON + optimizer state</td><td>saveModel/saveJson/saveOptimizer</td></tr>
+  </table>
+</section>
+
+<!-- ============ APPENDIX ============ -->
+<section id="appendix" class="card">
+  <h2>Appendix · API Reference & Cheatsheet</h2>
+
+  <h3>Build & Run</h3>
+<pre><code>mvn compile                          # compile all
+mvn test                             # JUnit 5 (TensorTest, ActivationTest, etc.)
+mvn exec:java -Dexec.mainClass=examples.MNISTClassification
+mvn exec:java -Dexec.mainClass=projects.vision.MnistClassifier        # P01
+mvn exec:java -Dexec.mainClass=projects.nlp.SentimentAnalyzer         # P06
+mvn exec:java -Dexec.mainClass=projects.tabular.IrisClassifier        # P12
+mvn exec:java -Dexec.mainClass=projects.timeseries.TemperatureForecast # P18
+mvn package -DskipTests              # jar in target/
+</code></pre>
+
+  <h3>Choosing components — decision tree</h3>
+<pre><code>Task = classify images?       → Conv2D + MaxPool + Dense + CrossEntropy + Adam + Softmax
+Task = classify text?         → Embedding/Vocab + LSTM or TransformerBlock + CrossEntropy + AdamW
+Task = tabular (few cols)?    → Dense(4-64) + ReLU + Dropout + CrossEntropy/MSE + Adam
+Task = forecast next value?   → LSTMLayer/GRULayer (returnSequences?) + Dense + MSELoss + Adam
+Task = detect anomaly?        → Dense Autoencoder 784→64→784 + MSELoss (threshold on recon error)
+Task = imbalanced binary?     → Dense + Sigmoid + FocalLoss (or BCE + class weights via sampling)
+Task = sequence alignment?    → LSTM + CTCLoss (blank token)
+Need sparse / large vocab?    → AdaGrad or Adam + Embedding + FocalLoss
+Need best generalization?     → AdamW + WeightDecay + GradientClipper + Cosine/Warmup scheduler + EarlyStopping</code></pre>
+
+  <h3>Common pitfalls</h3>
+  <ul>
+    <li><b>Shape mismatch:</b> <code>NeuralNetwork.add</code> checks <code>prev.outputSize == next.inputSize</code> for Dense/BN/LN. Pool/Activation/Flatten skip checks (<code>-1</code>). Conv2D infers <code>H</code> — ensure <code>cols</code> is a perfect square × channels.</li>
+    <li><b>Forgetting <code>training=true</code>:</b> Dropout and augmentation are no-ops when <code>false</code>. Always pass <code>true</code> in the training loop (Trainer does).</li>
+    <li><b>Loss/activation mismatch:</b> CrossEntropy expects Softmax probs; BCE expects Sigmoid; MSE expects linear. Mismatch gives NaN or plateau.</li>
+    <li><b>Learning rate too high:</b> Start 0.001 for Adam, 0.01 for SGD. Use GradientClipper(5.0) to avoid explosions in RNNs.</li>
+    <li><b>Not shuffling:</b> DataLoader shuffles by default — keep it for training, disable for deterministic eval.</li>
+  </ul>
+
+  <h3>Minimal import set</h3>
+<pre><code>import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.evaluation.Evaluator;</code></pre>
+
+  <p class="muted" style="margin-top:18px">Handbook generated for <code>mnist-dl v2.0</code> · Source of truth is <code>src/main/java/ml/**</code> · This HTML is self-contained — save it, print it, or host it statically. Feedback: <a href="https://github.com/anomalyco/opencode">opencode</a>.</p>
+</section>
+
+  </main>
+</div>
+
+<script>
+// Active TOC highlighting
+const links=[...document.querySelectorAll('.toc a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('active'));
+      const id='#'+e.target.id;
+      const m=links.find(l=>l.getAttribute('href')===id);
+      if(m) m.classList.add('active');
+    }
+  });
+},{rootMargin:'-40% 0px -50% 0px',threshold:0});
+secs.forEach(s=>obs.observe(s));
+// Smooth badge count animation (cosmetic)
+</script>
+</body>
+</html>

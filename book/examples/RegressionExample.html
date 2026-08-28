@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RegressionExample - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 15-examples.html</div>
+<h1 style="font-size:28px">RegressionExample</h1><p class="lead" style="font-size:15px">Synthetic regression</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="active">Examples</a><a href="../16-projects.html" class="">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>examples/RegressionExample.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">examples/RegressionExample.java</div><h2>RegressionExample</h2><p class="muted"><b>Synthetic regression</b> - Generates y = 2x0-1.5x1+0.5x2+3x3-0.8x4 + N(0,1) plus bias 1.5. MLP 5-32-16-1 with MSELoss + Adam + GradientClipper. Demonstrates regression head (no activation) and MSELoss.</p>
+<h3>ML principles</h3><ul><li><b>Linear regression with noise</b>: ground truth weights known, target y continuous.</li><li><b>MSELoss + linear head</b> (no activation) vs classification.</li><li><b>Gradient clipping 1.0</b> stabilizes early steps with Adam lr 0.01.</li></ul>
+<pre><code>y = bias + dot(x, trueW) + N(0,0.1)
+net = 5-32 ReLU -32-16 ReLU -16-1 (linear)
+loss=MSELoss, opt=Adam(0.01), clip=1.0
+trainer.fit(X, yToIntArray(y), 50,64) // int conversion is demo quirk
+</code></pre>
+<p class="muted">Note: This example truncates double y to int via yToIntArray before MSELoss — a pedagogical simplification; in production use Tensor targets directly.</p>
+<h3>Full source - <code>src/main/java/examples/RegressionExample.java</code></h3><pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.MSELoss;
+import ml.evaluation.Evaluator;
+import ml.regularization.GradientClipper;
+
+public class RegressionExample {
+    public static void main(String[] args) {
+        SeedManager.setSeed(42);
+        System.out.println(&quot;=== Simple Regression Example ===\n&quot;);
+
+        int samples = 1000;
+        int features = 5;
+        Tensor X = new Tensor(samples, features);
+        double[] trueWeights = {2.0, -1.5, 0.5, 3.0, -0.8};
+        double trueBias = 1.5;
+        double[] y = new double[samples];
+        java.util.Random rng = new java.util.Random(42);
+
+        for (int i = 0; i &lt; samples; i++) {
+            double sum = trueBias;
+            for (int j = 0; j &lt; features; j++) {
+                double val = rng.nextGaussian();
+                X.data()[i * features + j] = val;
+                sum += val * trueWeights[j];
+            }
+            y[i] = sum + rng.nextGaussian() * 0.1;
+        }
+
+        System.out.println(&quot;True weights: [2.0, -1.5, 0.5, 3.0, -0.8], bias: 1.5\n&quot;);
+
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new ml.layer.DenseLayer(features, 32));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.layer.DenseLayer(32, 16));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.layer.DenseLayer(16, 1));
+        System.out.println(network);
+
+        MSELoss loss = new MSELoss();
+        Adam optimizer = new Adam(0.01);
+        Trainer trainer = new Trainer(network, loss, optimizer)
+            .withGradientClipper(new GradientClipper(1.0));
+
+        TrainingHistory history = trainer.fit(X, yToIntArray(y), 50, 64);
+        trainer.saveTrainingChart(&quot;training_regression.png&quot;);
+
+        System.out.println(&quot;\nFinal loss: &quot; + history.lastLoss());
+        System.out.println(&quot;Best loss:  &quot; + history.bestLoss());
+        System.out.println(&quot;Total time: &quot; + history.totalTimeMs() + &quot;ms&quot;);
+    }
+
+    private static int[] yToIntArray(double[] y) {
+        int[] result = new int[y.length];
+        for (int i = 0; i &lt; y.length; i++) result[i] = (int) y[i];
+        return result;
+    }
+}
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.RegressionExample</span></div></section></main></div>
+</body></html>

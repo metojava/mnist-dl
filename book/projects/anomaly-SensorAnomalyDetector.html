@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SensorAnomalyDetector - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">SensorAnomalyDetector</h1><p class="lead" style="font-size:15px">Anomaly - Autoencoder + reconstruction error threshold (unsupervised)</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/anomaly-SensorAnomalyDetector.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/anomaly/SensorAnomalyDetector.java</div><h2>SensorAnomalyDetector</h2><p class="muted"><b>Anomaly</b> - Autoencoder + reconstruction error threshold (unsupervised)</p><h3>ML principles</h3><ul><li><b>Unsupervised anomaly</b>: train autoencoder only on normal sensor windows, reconstruction MSE low for normal, high for anomaly.</li><li><b>Bottleneck</b>: 20-12-4-12-20 forces compression.</li><li><b>Thresholding</b>: at inference flag if MSE > quantile.</li></ul><h3>Architecture</h3><pre><code>AE 20-12 ReLU -12-4 ReLU -4-12 ReLU -12-20 Sigmoid, MSELoss, Adam(0.001)</code></pre><h3>Full source</h3><pre><code>package projects.anomaly;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.optimizer.Adam;
+import projects.common.Proj;
+
+import java.util.Random;
+
+/**
+ * P20 - Sensor anomaly detection with an autoencoder.
+ * Trained only on normal 3-sensor telemetry; anomalies (spikes, stuck-at values)
+ * are flagged when reconstruction error exceeds the 95th percentile of validation error.
+ *
+ * Run : mvn compile exec:java &quot;-Dexec.mainClass=projects.anomaly.SensorAnomalyDetector&quot; &quot;-Dexec.args=200 64&quot;
+ */
+public class SensorAnomalyDetector {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+        int epochs = Proj.epochs(args, 200), batch = Proj.batch(args, 64);
+        long t0 = System.currentTimeMillis();
+
+        Random rng = new Random(42);
+        int trainN = 3000, testN = 1200;
+
+        // ---- Normal data: smooth sinusoid + drift + noise ----
+        Tensor trainX = new Tensor(trainN, 3);
+        for (int i = 0; i &lt; trainN; i++)
+            for (int s = 0; s &lt; 3; s++) {
+                double v = 10 * Math.sin(2 * Math.PI * i / 180.0 + s)
+                    + 2.5 * Math.sin(2 * Math.PI * i / 24.0 + 1.3 * s)
+                    + rng.nextGaussian() * 0.4;
+                trainX.set(i, s, (v + 12) / 24);   // -&gt; ~[0,1]
+            }
+
+        NeuralNetwork net = new NeuralNetwork();
+        net.add(new ml.layer.DenseLayer(3, 16));
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(16, 6));    // bottleneck
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(6, 16));
+        net.add(new ml.activation.ReLU());
+        net.add(new ml.layer.DenseLayer(16, 3));
+        net.add(new ml.activation.Sigmoid());
+        System.out.printf(&quot;[P20 Anomaly] params=%d%n&quot;, net.totalParameters());
+
+        double lr = 0.008;
+        for (int ep = 1; ep &lt;= epochs; ep++) {
+            double loss = 0; int cnt = 0;
+            int from = 0;
+            while (from &lt; trainN) {
+                int to = Math.min(from + batch, trainN);
+                Tensor xb = trainX.sliceRows(from, to);
+                Tensor pred = net.forward(xb, true);
+                loss += mse(pred, xb);
+                Tensor grad = pred.subtract(xb).multiply(2.0 / (to - from));
+                net.backward(grad);
+                net.update(lr);
+                from = to; cnt++;
+            }
+            if (ep == 1 || ep % 50 == 0) System.out.printf(&quot;epoch %d: recon MSE=%.5f%n&quot;, ep, loss / cnt);
+        }
+
+        // Threshold = p95 of training reconstruction errors
+        double[] errs = new double[trainN];
+        Tensor recTrain = net.forward(trainX, false);
+        for (int i = 0; i &lt; trainN; i++) {
+            double e = 0;
+            for (int s = 0; s &lt; 3; s++) { double d = recTrain.get(i, s) - trainX.get(i, s); e += d * d; }
+            errs[i] = Math.sqrt(e);
+        }
+        java.util.Arrays.sort(errs);
+        double threshold = errs[(int) (errs.length * 0.99)];
+        System.out.printf(&quot;anomaly threshold (p99): %.4f%n&quot;, threshold);
+
+        // ---- Test stream: mostly normal, inject anomalies every ~40 steps ----
+        Tensor testX = new Tensor(testN, 3);
+        boolean[] isAnomaly = new boolean[testN];
+        for (int i = 0; i &lt; testN; i++) {
+            boolean anomalous = i % 40 == 17;
+            isAnomaly[i] = anomalous;
+            for (int s = 0; s &lt; 3; s++) {
+                double v = 10 * Math.sin(2 * Math.PI * i / 180.0 + s)
+                    + 2.5 * Math.sin(2 * Math.PI * i / 24.0 + 1.3 * s)
+                    + rng.nextGaussian() * 0.4;
+                if (anomalous) {
+                    int mode = (i + s) % 3;
+                    if (mode == 0) v += rng.nextBoolean() ? 11 : -11;          // spike
+                    else if (mode == 1) v = tempAt(i - 30, s) ;                // stuck-at
+                    else v += rng.nextGaussian() * 6;                          // heavy noise
+                }
+                testX.set(i, s, (v + 12) / 24);
+            }
+        }
+
+        Tensor recTest = net.forward(testX, false);
+        int tp = 0, fp = 0, fn = 0;
+        for (int i = 0; i &lt; testN; i++) {
+            double e = 0;
+            for (int s = 0; s &lt; 3; s++) { double d = recTest.get(i, s) - testX.get(i, s); e += d * d; }
+            boolean flag = Math.sqrt(e) &gt; threshold;
+            if (flag &amp;&amp; isAnomaly[i]) tp++;
+            else if (flag) fp++;
+            else if (isAnomaly[i]) fn++;
+        }
+        double precision = tp + fp &gt; 0 ? (double) tp / (tp + fp) : 0;
+        double recall = (double) tp / Math.max(1, tp + fn);
+        System.out.printf(&quot;Detected anomalies: TP=%d FP=%d FN=%d | precision=%.2f recall=%.2f F1=%.2f%n&quot;,
+            tp, fp, fn, precision, recall,
+            precision + recall &gt; 0 ? 2 * precision * recall / (precision + recall) : 0);
+        Proj.footer(&quot;P20 Anomaly&quot;, t0);
+    }
+
+    static double[] stuckCache = new double[3];
+
+    static double tempAt(int i, int s) {
+        if (i &lt; 0) i = 0;
+        return 10 * Math.sin(2 * Math.PI * i / 180.0 + s) + 2.5 * Math.sin(2 * Math.PI * i / 24.0 + 1.3 * s);
+    }
+
+    static double mse(Tensor a, Tensor b) {
+        double s = 0;
+        for (int i = 0; i &lt; a.size(); i++) { double d = a.data()[i] - b.data()[i]; s += d * d; }
+        return s / a.size();
+    }
+}
+
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.anomaly.SensorAnomalyDetector</span></div></section></main></div>
+</body></html>

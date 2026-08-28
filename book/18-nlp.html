@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>18 · NLP - mnist-dl Handbook</title><link rel="stylesheet" href="style.css">
+<style>
+.chart{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:12px;overflow:auto}
+.formula{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:14px;font-family:ui-monospace,monospace;font-size:16px;line-height:1.5;overflow:auto}
+.formula b{color:#4f46e5}
+.svg-wrap{background:#ffffff;border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;justify-content:center;overflow:auto}
+</style>
+</head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 · Java 17 · Book</div>
+<h1 style="font-size:30px">18 · NLP</h1><p class="lead" style="font-size:15px">BoW, embeddings, LSTM and generation — all NLP projects explained</p></div></div></header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="active">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="active">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">All code 17px · Charts are inline SVG · Offline ready</div></nav>
+<main class="content">
+<section class="card">
+<div class="eyebrow">Part VII · NLP</div>
+<h2>18 · NLP — From BoW to Language Models</h2>
+<p class="muted">Library supports full NLP pipeline: <code>projects/common/Vocab.java:1</code> + <code>TextCorpus.java:1</code> → <code>ml/layer/Embedding.java:1</code> → <code>RNN/LSTM/GRU</code> or <code>TransformerBlock</code> → <code>Dense+Softmax + CrossEntropy</code>. All 6 NLP projects are runnable offline.</p>
+
+<div class="formula">
+<b>Bag-of-Words</b>: bow<sub>i</sub> = count(word<sub>i</sub>) / |doc|  &nbsp;or one-hot sum<br>
+<b>Embedding</b>: e = W<sub>emb</sub>[tokenId] ∈ ℝ<sup>d</sup> &nbsp; lookup, not matmul<br>
+<b>Sequence likelihood</b>: P(w<sub>1..T</sub>) = ∏<sub>t</sub> P(w<sub>t</sub> | w<sub>&lt;t</sub>)
+</div>
+
+<div class="grid2">
+<div>
+<h3>Pipeline in this library</h3>
+<div class="svg-wrap">
+<svg width="340" height="200" viewBox="0 0 340 200"><rect width="340" height="200" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="14" y="20" font-size="12" font-weight="700" fill="#334155">Text → Tensor → Loss</text>
+<rect x="18" y="30" width="300" height="28" rx="8" fill="#eef2ff" stroke="#c7d2fe"/><text x="30" y="48" font-size="11" fill="#1e1b4b">1. Vocab.build(texts) → ids 0..V-1</text>
+<rect x="18" y="66" width="300" height="28" rx="8" fill="#fff7ed" stroke="#fed7aa"/><text x="30" y="84" font-size="11" fill="#7c2d12">2. bowMatrix / Embedding lookup</text>
+<rect x="18" y="102" width="300" height="28" rx="8" fill="#ecfdf5" stroke="#a7f3d0"/><text x="30" y="120" font-size="11" fill="#064e3b">3. LSTM / GRU / TransformerBlock</text>
+<rect x="18" y="138" width="300" height="28" rx="8" fill="#fce7f3" stroke="#fbcfe8"/><text x="30" y="156" font-size="11" fill="#831843">4. Dense(V)→Softmax → CrossEntropy</text>
+<line x1="168" y1="58" x2="168" y2="66" stroke="#94a3b8" marker-end="url(#a)"/><line x1="168" y1="94" x2="168" y2="102" stroke="#94a3b8"/><line x1="168" y1="130" x2="168" y2="138" stroke="#94a3b8"/>
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#94a3b8"/></marker></defs>
+</svg>
+</div>
+</div>
+<div>
+<h3>When to use what</h3>
+<table class="table">
+<tr><th>Task</th><th>Starter project</th><th>Architecture</th></tr>
+<tr><td>Sentiment (pos/neg)</td><td>SentimentAnalyzer P06</td><td>BoW → 64 ReLU Dropout → 2 Softmax</td></tr>
+<tr><td>Intent (short cmds)</td><td>IntentClassifier P11</td><td>BoW → Dense → Softmax</td></tr>
+<tr><td>Topic (news)</td><td>NewsTopic P10</td><td>BoW → TransformerBlock(256)</td></tr>
+<tr><td>Next word</td><td>NextWordPredictor P09</td><td>Embedding → LSTM 128 → 5k Softmax</td></tr>
+<tr><td>Char generation</td><td>CharLstmGenerator P08</td><td>Embedding → LSTM → char Softmax, sampling</td></tr>
+<tr><td>Language ID</td><td>LanguageIdentifier P07</td><td>BoW/char n-gram → Dense</td></tr>
+</table>
+</div>
+</div>
+
+<h3>BoW example — SentimentAnalyzer <span class="tag">projects/nlp/SentimentAnalyzer.java:1</span></h3>
+<pre><code>List&lt;String&gt; texts = List.of(TextCorpus.POSITIVE, TextCorpus.NEGATIVE);
+Vocab vocab = new Vocab(texts); // builds word -&gt; id
+double[][] bow = Vocab.bowMatrix(texts, vocab); // [N, V] counts
+Tensor x = Tensor.fromFlat(flatten(bow), N, vocab.size);
+Proj.shuffle(x, labels, new Random(42));
+NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(vocab.size,64)).add(new ReLU()).add(new Dropout(0.3))
+  .add(new DenseLayer(64,2)).add(new Softmax());
+new Trainer(net, new CrossEntropyLoss(), new Adam(0.005))
+  .withWeightDecay(new WeightDecay(0,1e-3)).fit(trainX,trainY,40,16);
+// Demo: vocab.bow("wonderful brilliant") -&gt; net.forward -> POS 92%</code></pre>
+
+<h3>Embedding + LSTM — NextWordPredictor <span class="tag">projects/nlp/NextWordPredictor.java:1</span></h3>
+<div class="formula">
+Input: ids [w<sub>t-k</sub>..w<sub>t-1</sub>] → Embedding(V,d) → sequence [k·d]<br>
+LSTM(d→h) → Dense(h→V) → Softmax → CE over next word<br>
+<span class="muted">Loss: −log P(w<sub>t</sub> | context) ; perplexity = exp(loss)</span>
+</div>
+<pre><code>Embedding emb = new Embedding(5000, 128);
+LSTMLayer lstm = new LSTMLayer(128, 128);
+NeuralNetwork lm = new NeuralNetwork()
+  .add(new Embedding(5000,128))
+  .add(new LSTMLayer(128,128))
+  .add(new DenseLayer(128,5000)).add(new Softmax());
+// Training: teacher forcing — feed true prefix, predict next token</code></pre>
+
+<h3>Char-level generation — CharLstmGenerator <span class="tag">projects/nlp/CharLstmGenerator.java:1</span></h3>
+<pre><code>// Alphabet size ~ 60 (a-z + punct)
+// net = Embedding(60,32) -&gt; LSTM 64 -&gt; Dense 60 Softmax
+// Generation loop (autoregressive):
+Tensor cur = seedIds; // e.g., "hello "
+for(int t=0;t&lt;100;t++){
+  Tensor logits = net.forward(cur,false);
+  int next = sample(logits, temperature=0.8); // top-k / temp
+  cur = append(cur, next);
+}</code></pre>
+<div class="callout">Sampling controls: <b>temperature →0</b> greedy, <b>→1</b> stochastic, <b>top-k / top-p</b> truncation after softmax. Library exposes raw logits — add sampling yourself (see CharLstmGenerator).</div>
+
+<div class="svg-wrap">
+<svg width="740" height="140" viewBox="0 0 740 140"><rect width="740" height="140" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="14" y="20" font-size="12" font-weight="700" fill="#334155">Autoregressive generation (context window k=8)</text>
+<g font-size="11" fill="#334155">
+<rect x="20" y="30" width="48" height="28" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><text x="32" y="48">the</text>
+<rect x="76" y="30" width="48" height="28" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><text x="86" y="48">cat</text>
+<rect x="132" y="30" width="48" height="28" rx="6" fill="#eef2ff" stroke="#c7d2fe"/><text x="142" y="48">sat</text>
+<text x="190" y="48" fill="#94a3b8">→</text>
+<rect x="210" y="30" width="68" height="28" rx="6" fill="#ecfdf5" stroke="#a7f3d0"/><text x="222" y="48">on</text>
+<text x="285" y="48" font-size="10" fill="#059669">softmax → sample</text>
+</g>
+<path d="M44 62 Q 44 95 210 95 Q 240 95 240 70" fill="none" stroke="#94a3b8" stroke-dasharray="4 4"/>
+<text x="90" y="112" font-size="10" fill="#64748b">slide window: drop left, append sampled token</text>
+</svg>
+</div>
+</section>
+</main></div>
+</body></html>

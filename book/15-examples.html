@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>15 - Examples - mnist-dl Handbook</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Book</div>
+<h1 style="font-size:30px">15 - Examples</h1><p class="lead" style="font-size:15px">10 runnable mains covering training loops, optimizers, and diagnostics</p></div></div></header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="active">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="active">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">Code font 17px (+4px) - Each page standalone</div></nav>
+<main class="content"><section class="card"><div class="eyebrow">Section: Examples</div><h2>15 - Examples - Runnable entry points</h2><p class="muted">Each file in <code>src/main/java/examples/</code> is a self-contained <code>main()</code>. Run via <code>mvn compile exec:java -Dexec.mainClass=examples.&lt;Name&gt;</code>.</p><table class="table"><tr><th>File</th><th>Role</th><th>Core idea</th></tr><tr><td><a href="examples/BenchEpoch.html"><code>BenchEpoch.java</code></a></td><td>Benchmark harness</td><td>Warms up JIT then times 3 epochs of MLP on Fashion-MNIST (784-256-128-64-10) with Adam+Clip+WeightDecay. Use to compare Trainer overhead.</td></tr><tr><td><a href="examples/BinaryClassificationExample.html"><code>BinaryClassificationExample.java</code></a></td><td>Binary classifier</td><td>Synthetic 8-D Gaussian data where y = (x0+x1>0). MLP 8-32-16-1 with ReLU+Dropout+Sigmoid, BCE loss, Adam, 30 epochs. Shows BCE+Sigmoid pairing and ConfusionMatrix.</td></tr><tr><td><a href="examples/DiagBench.html"><code>DiagBench.java</code></a></td><td>Single-batch diagnostics</td><td>Runs exactly ONE forward/backward/step on 32 MNIST rows and prints every intermediate: output stats, loss, grad norms, weight L2 before/after SGD. Debug exploding/vanishing grads.</td></tr><tr><td><a href="examples/ManualBench.html"><code>ManualBench.java</code></a></td><td>Manual training loop</td><td>Same 784-128-10 net but WITHOUT Trainer: iterates DataLoader manually, calls forward/loss/backward/step. Proves what Trainer abstracts.</td></tr><tr><td><a href="examples/MinimalBench.html"><code>MinimalBench.java</code></a></td><td>Fixed-batch stress test</td><td>Reuses the SAME 128 samples for 100 steps x 5 epochs. Isolates compute from DataLoader/Shuffle overhead — pure matmul+activation speed.</td></tr><tr><td><a href="examples/MNISTClassification.html"><code>MNISTClassification.java</code></a></td><td>Fashion-MNIST main demo</td><td>The canonical example: loads Fashion-MNIST via MNISTLoader, builds 784-256-128-64-10 + Dropout, trains with Adam+Clip+L2 for 10 epochs, evaluates with Evaluator+ConfusionMatrix, saves chart+model.</td></tr><tr><td><a href="examples/NoDataLoaderBench.html"><code>NoDataLoaderBench.java</code></a></td><td>No DataLoader baseline</td><td>Shuffles via raw perm array and builds Tensor.fromFlat manually per batch. Compares cost of not using DataLoader vs Trainer.</td></tr><tr><td><a href="examples/OptimizerBenchmark.html"><code>OptimizerBenchmark.java</code></a></td><td>All 6 optimizers head-to-head</td><td>Synthetic 5-class Gaussian mixture (20-D). Trains identical 20-64-32-5 + Softmax nets with SGD, SGD+mom, Adam, AdamW, RMSProp, AdaGrad for 20 epochs and prints accuracy/time.</td></tr><tr><td><a href="examples/RegressionExample.html"><code>RegressionExample.java</code></a></td><td>Synthetic regression</td><td>Generates y = 2x0-1.5x1+0.5x2+3x3-0.8x4 + N(0,1) plus bias 1.5. MLP 5-32-16-1 with MSELoss + Adam + GradientClipper. Demonstrates regression head (no activation) and MSELoss.</td></tr><tr><td><a href="examples/SimpleBench.html"><code>SimpleBench.java</code></a></td><td>Keras-style 2-layer</td><td>Minimal 784-128-10 + Softmax with SGD(0.1), 10 epochs, batch 128. Then manual batched evaluation loop computing accuracy. Cleanest start.</td></tr></table><div class="callout">Tip: Start with <a href="examples/SimpleBench.html">SimpleBench</a> then <a href="examples/MNISTClassification.html">MNISTClassification</a> then <a href="examples/OptimizerBenchmark.html">OptimizerBenchmark</a>.</div></section><section class="card"><h3>Common run pattern</h3><pre><code>SeedManager.setSeed(42);
+Dataset ds = MNISTLoader.load("data/train-images-idx3-ubyte","data/train-labels-idx1-ubyte");
+NeuralNetwork net = new NeuralNetwork().add(new DenseLayer(784,128)).add(new ReLU()).add(new DenseLayer(128,10)).add(new Softmax());
+Trainer t = new Trainer(net, new CrossEntropyLoss(), new Adam(0.001));
+t.fit(ds.images(), ds.labels(), 10, 128);</code></pre></section></main></div>
+</body></html>

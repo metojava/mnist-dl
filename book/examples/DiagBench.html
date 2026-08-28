@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiagBench - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 15-examples.html</div>
+<h1 style="font-size:28px">DiagBench</h1><p class="lead" style="font-size:15px">Single-batch diagnostics</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="active">Examples</a><a href="../16-projects.html" class="">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>examples/DiagBench.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">examples/DiagBench.java</div><h2>DiagBench</h2><p class="muted"><b>Single-batch diagnostics</b> - Runs exactly ONE forward/backward/step on 32 MNIST rows and prints every intermediate: output stats, loss, grad norms, weight L2 before/after SGD. Debug exploding/vanishing grads.</p>
+<h3>ML principles</h3><ul><li><b>Gradient checking / diagnostics</b>: inspect forward output distribution, loss magnitude, gradient L2, weight change delta.</li><li><b>SGD with large LR 0.1</b> on shallow 784-128-10 to see fast loss drop or divergence.</li></ul>
+<h3>Walkthrough</h3><pre><code>xBatch = sliceRows(0,32); yBatch = copy 0..32
+output = net.forward(xBatch,true); // log shape/row sums/max/min
+loss = CrossEntropy forward; grad = backward
+network.backward(grad); // fills Dense weightGrad / biasGrad
+inspect wg.sum/max/min/L2, bg L2
+weights mean/L2 before -> optimizer.step(layers,0.1) -> after
+second forward to verify loss delta
+</code></pre>
+<div class="callout warn">Use this when your loss is NaN or grad is 0 — it pinpoints which layer died.</div>
+<h3>Full source - <code>src/main/java/examples/DiagBench.java</code></h3><pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.SGD;
+import ml.loss.CrossEntropyLoss;
+import ml.layer.DenseLayer;
+import ml.layer.Layer;
+import ml.util.MNISTLoader;
+
+public class DiagBench {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+
+        Dataset trainData = MNISTLoader.load(&quot;data/train-images-idx3-ubyte&quot;, &quot;data/train-labels-idx1-ubyte&quot;);
+
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new ml.layer.DenseLayer(784, 128));
+        network.add(new ml.activation.ReLU());
+        network.add(new ml.layer.DenseLayer(128, 10));
+        network.add(new ml.activation.Softmax());
+
+        SGD optimizer = new SGD(0.1);
+        CrossEntropyLoss loss = new CrossEntropyLoss();
+
+        System.out.println(&quot;=== DIAGNOSTIC: 1 batch, manual forward/backward/update ===\n&quot;);
+
+        // Take first batch manually
+        Tensor xBatch = trainData.images().sliceRows(0, 32);
+        int[] yBatch = java.util.Arrays.copyOfRange(trainData.labels(), 0, 32);
+
+        System.out.println(&quot;Batch input: mean=&quot; + xBatch.mean() + &quot; sum=&quot; + xBatch.sum());
+        System.out.println(&quot;Batch labels: &quot; + java.util.Arrays.toString(yBatch));
+
+        // Forward
+        Tensor output = network.forward(xBatch, true);
+        System.out.println(&quot;\nForward output (before softmax): checking shape &quot; + output.rows() + &quot;x&quot; + output.cols());
+        System.out.println(&quot;Output row 0: &quot;);
+        double[] row0 = output.data();
+        for (int j = 0; j &lt; Math.min(10, output.cols()); j++) {
+            System.out.printf(&quot;  [%d]=%.6f&quot;, j, row0[j]);
+        }
+        System.out.println();
+        System.out.println(&quot;Output sum row0 = &quot; + output.sum());
+        System.out.println(&quot;Output max = &quot; + output.max() + &quot; min = &quot; + output.min());
+
+        // Loss
+        double batchLoss = loss.forward(output, yBatch);
+        System.out.println(&quot;\nLoss: &quot; + batchLoss);
+
+        // Backward
+        Tensor grad = loss.backward(output, yBatch);
+        System.out.println(&quot;\nLoss gradient: sum=&quot; + grad.sum() + &quot; max=&quot; + grad.max() + &quot; min=&quot; + grad.min());
+
+        // Check gradient stats
+        double[] gd = grad.data();
+        int nonZero = 0;
+        for (double v : gd) if (v != 0) nonZero++;
+        System.out.println(&quot;Loss gradient non-zero elements: &quot; + nonZero + &quot;/&quot; + gd.length);
+
+        network.backward(grad);
+
+        // Check weight gradients
+        for (Layer layer : network.getLayers()) {
+            if (layer instanceof DenseLayer dense) {
+                Tensor wg = dense.weightsGradient();
+                Tensor bg = dense.biasGradient();
+                if (wg != null) {
+                    System.out.printf(&quot;\nDense(%d-&gt;%d) weightGrad: sum=%.6f max=%.6f min=%.6f norm=%.6f%n&quot;,
+                        dense.inputSize(), dense.outputSize(),
+                        wg.sum(), wg.max(), wg.min(),
+                        Math.sqrt(wg.data().length &gt; 0 ? wg.data()[0] * wg.data()[0] : 0));
+                    double wNorm = 0;
+                    for (double v : wg.data()) wNorm += v * v;
+                    System.out.printf(&quot;  weightGrad L2 = %.6f%n&quot;, Math.sqrt(wNorm));
+                }
+                if (bg != null) {
+                    double bNorm = 0;
+                    for (double v : bg.data()) bNorm += v * v;
+                    System.out.printf(&quot;  biasGrad L2 = %.6f%n&quot;, Math.sqrt(bNorm));
+                }
+            }
+        }
+
+        // Check weights before update
+        System.out.println(&quot;\n=== BEFORE UPDATE ===&quot;);
+        for (Layer layer : network.getLayers()) {
+            if (layer instanceof DenseLayer dense) {
+                double[] wData = dense.weights().data();
+                double wMean = 0;
+                for (double v : wData) wMean += v;
+                wMean /= wData.length;
+                double wNorm = 0;
+                for (double v : wData) wNorm += v * v;
+                System.out.printf(&quot;Dense(%d-&gt;%d) weights: mean=%.6f L2=%.6f%n&quot;,
+                    dense.inputSize(), dense.outputSize(), wMean, Math.sqrt(wNorm));
+            }
+        }
+
+        // Step
+        optimizer.step(network.getLayers(), 0.1);
+
+        // Check weights after update
+        System.out.println(&quot;\n=== AFTER UPDATE ===&quot;);
+        for (Layer layer : network.getLayers()) {
+            if (layer instanceof DenseLayer dense) {
+                double[] wData = dense.weights().data();
+                double wMean = 0;
+                for (double v : wData) wMean += v;
+                wMean /= wData.length;
+                double wNorm = 0;
+                for (double v : wData) wNorm += v * v;
+                System.out.printf(&quot;Dense(%d-&gt;%d) weights: mean=%.6f L2=%.6f%n&quot;,
+                    dense.inputSize(), dense.outputSize(), wMean, Math.sqrt(wNorm));
+            }
+        }
+
+        // Second forward to verify loss changed
+        Tensor output2 = network.forward(xBatch, true);
+        double batchLoss2 = loss.forward(output2, yBatch);
+        System.out.println(&quot;\nLoss after 1 step: &quot; + batchLoss2);
+        System.out.println(&quot;Loss delta: &quot; + (batchLoss - batchLoss2));
+    }
+}
+</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=examples.DiagBench</span></div></section></main></div>
+</body></html>

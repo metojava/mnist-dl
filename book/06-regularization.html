@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part II - Regularization - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Regularization & Augmentation</h1>
+      <p class="lead" style="font-size:15px">Dropout, WeightDecay, GradientClipper, Augmentation</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>9 · Regularization & Augmentation</h2>
+  <div class="grid2">
+    <div>
+      <h3>Dropout <span class="tag">ml/regularization/Dropout.java</span></h3>
+<pre><code>Dropout drop = new Dropout(0.3); // 30% drop
+Dropout mild = new Dropout(0.1);
+NeuralNetwork net = new NeuralNetwork()
+  .add(new DenseLayer(784,256))
+  .add(new ReLU())
+  .add(new Dropout(0.2))   // training=true → mask & scale 1/(1-p)
+  .add(new DenseLayer(256,10))
+  .add(new Softmax());
+
+Tensor trainOut = net.forward(x, true);  // dropout active
+Tensor testOut  = net.forward(x, false); // passthrough
+// In backward(), gradient is masked identically
+</code></pre>
+      <h3>WeightDecay <span class="tag">ml/regularization/WeightDecay.java</span></h3>
+<pre><code>WeightDecay l2 = new WeightDecay(0, 1e-4); // L2 only
+WeightDecay l1l2 = new WeightDecay(1e-5, 1e-4);
+Trainer t = new Trainer(net, loss, opt)
+  .withWeightDecay(l2);
+// Applied after optimizer step: W -= lr*(l1*sign(W)+l2*W)
+double penalty = l2.computeLoss(net.getLayers());
+</code></pre>
+      <h3>GradientClipper <span class="tag">ml/regularization/GradientClipper.java</span></h3>
+<pre><code>GradientClipper byNorm  = new GradientClipper(5.0); // clip by global norm
+GradientClipper byValue = new GradientClipper(
+  GradientClipper.Mode.VALUE, 1.0); // clip each grad to [-1,1]
+
+Trainer t2 = new Trainer(net, loss, opt)
+  .withGradientClipper(byNorm)
+  .withWeightDecay(new WeightDecay(1e-4));
+// Trainer calls clipper.clip(layers) before optimizer.step()
+</code></pre>
+    </div>
+    <div>
+      <h3>Data Augmentation (all are <code>Layer</code>)</h3>
+      <p>Operate on flattened images; auto-detect <code>H = sqrt(cols)</code>. Only active when <code>training=true</code>.</p>
+<pre><code>RandomFlip flipH = new RandomFlip("horizontal", 0.5);
+RandomFlip flipV = new RandomFlip("vertical", 0.5);
+RandomFlip flipBoth = new RandomFlip("both", 0.5);
+
+RandomRotation rot = new RandomRotation(15.0, 0.5); // ±15°
+RandomCrop crop = new RandomCrop(24, 0.5);         // crop 24×24 from 28×28
+RandomZoom zoom = new RandomZoom(0.2, 0.5);        // zoom ±20%
+
+NeuralNetwork augNet = new NeuralNetwork()
+  .add(new RandomFlip("horizontal", 0.5))
+  .add(new RandomRotation(10.0, 0.3))
+  .add(new DenseLayer(784,256))
+  .add(new ReLU())
+  .add(new DenseLayer(256,10))
+  .add(new Softmax());
+
+Tensor augmented = augNet.forward(batch, true);
+Tensor clean     = augNet.forward(batch, false); // no augmentation
+</code></pre>
+      <div class="callout warn"><b>Ordering matters:</b> Place augmentation layers <b>first</b> (before Dense/Conv) so they transform raw inputs, not features.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CH10 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="05-layers-attention.html"><span class="label">Previous</span><span class="title">Attention</span></a>
+      <a href="07-activations.html"><span class="label">Next</span><span class="title">Activations</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

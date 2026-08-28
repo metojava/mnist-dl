@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a Fast Java Deep Learning Library from Scratch</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --orange: #db6d28;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+  .hero {
+    background: linear-gradient(135deg, #1a1e2e 0%, #0d1117 50%, #111d2c 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 80px 40px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 2.8em;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+  .hero .subtitle {
+    font-size: 1.2em;
+    color: var(--text-dim);
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 30px;
+  }
+  h2 {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: var(--text);
+    margin: 60px 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  h2 .num {
+    color: var(--accent);
+    font-family: 'Courier New', monospace;
+  }
+  h3 {
+    font-size: 1.2em;
+    color: var(--accent);
+    margin: 30px 0 12px;
+    font-weight: 600;
+  }
+  p { margin: 12px 0; }
+  .meta {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    margin-top: 30px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 24px;
+    text-align: center;
+  }
+  .meta-item .value {
+    font-size: 1.6em;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .meta-item .label {
+    font-size: 0.85em;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .timeline {
+    position: relative;
+    padding-left: 30px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .step {
+    position: relative;
+    margin: 40px 0;
+    padding-left: 30px;
+  }
+  .step::before {
+    content: '';
+    position: absolute;
+    left: -26px;
+    top: 8px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg);
+  }
+  .step.bug::before { background: var(--red); }
+  .step.fix::before { background: var(--green); }
+  .step.opt::before { background: var(--yellow); }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 0.9em;
+    line-height: 1.5;
+    margin: 16px 0;
+  }
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9em;
+  }
+  .inline-code {
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.88em;
+  }
+  .callout {
+    background: var(--surface);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 20px 0;
+  }
+  .callout.warning {
+    border-left-color: var(--yellow);
+  }
+  .callout.danger {
+    border-left-color: var(--red);
+  }
+  .callout.success {
+    border-left-color: var(--green);
+  }
+  .callout strong {
+    display: block;
+    margin-bottom: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.95em;
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+  }
+  .badge.bug { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge.fix { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge.opt { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .badge.critical { background: rgba(248,81,73,0.3); color: #ff7b72; font-weight: 700; }
+  .diff-add { color: var(--green); }
+  .diff-del { color: var(--red); }
+  .diff-cmt { color: var(--text-dim); }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .summary-card h4 {
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+  .arrow { color: var(--accent); margin: 0 6px; }
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    font-size: 0.9em;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Building a Fast Java Deep Learning Library</h1>
+  <p class="subtitle">
+    From a flat single-file prototype to a parallel, production-quality ML framework
+    &mdash; every bug, optimization, and hard-won lesson documented.
+  </p>
+  <div class="meta">
+    <div class="meta-item">
+      <div class="value">63</div>
+      <div class="label">Source Files</div>
+    </div>
+    <div class="meta-item">
+      <div class="value">10</div>
+      <div class="label">Bugs Found &amp; Fixed</div>
+    </div>
+    <div class="meta-item">
+      <div class="value">~24s</div>
+      <div class="label">Per Epoch (4 layers)</div>
+    </div>
+    <div class="meta-item">
+      <div class="value">~7s</div>
+      <div class="label">Per Epoch (2 layers)</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<h2><span class="num">00</span> &mdash; The Starting Point</h2>
+
+<p>
+  We started with a flat-package Java ML library: every class in one <code>ml</code> package,
+  single-threaded matrix operations, and a basic MNIST classifier. The old code ran
+  <strong>784&rarr;128&rarr;64&rarr;10</strong> with SGD in about <strong>12&ndash;16 seconds per epoch</strong>
+  on Fashion-MNIST.
+</p>
+
+<p>The goal: restructure into proper packages, add Java parallelism with ExecutorService,
+and match or beat the old single-threaded performance.</p>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h4>Old Architecture</h4>
+    <p style="color: var(--text-dim)">All classes in one flat <code>ml</code> package.<br>
+    Sequential matmul. No thread pools.<br>
+    SGD only. No dropout/regularization.</p>
+  </div>
+  <div class="summary-card">
+    <h4>Target Architecture</h4>
+    <p style="color: var(--text-dim)">Layered packages: core, layer, activation, loss, optimizer...<br>
+    Parallel matmul, element-wise, reductions via ExecutorService.<br>
+    Adam optimizer, dropout, gradient clipping, weight decay.</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2><span class="num">01</span> &mdash; Package Restructuring</h2>
+
+<p>63 source files organized into a clean hierarchy:</p>
+
+<pre><code>ml/
+  core/       Tensor, ThreadPoolManager, SeedManager
+  layer/      DenseLayer, BatchNorm, Layer interface
+  activation/ ReLU, Softmax, Sigmoid, Tanh
+  loss/       CrossEntropyLoss, MSELoss
+  optimizer/  SGD, Adam, AdamW, RMSProp, AdaGrad
+  training/   Trainer, DataLoader, TrainingHistory
+  network/    NeuralNetwork (forward/backward orchestration)
+  evaluation/ Evaluator, ConfusionMatrix
+  regularization/ Dropout, GradientClipper, WeightDecay
+  util/       MNISTLoader, MNISTVisualizer, TrainingChart
+  exception/  ShapeException, ModelIOException</code></pre>
+
+<!-- ============================================================ -->
+<h2><span class="num">02</span> &mdash; Parallelism Architecture</h2>
+
+<p>The parallelism model uses a centralized <span class="inline-code">ThreadPoolManager</span>
+with a shared compute pool sized to <span class="inline-code">availableProcessors()</span> threads.</p>
+
+<h3>The pattern (repeated 25+ times across the codebase):</h3>
+
+<pre><code><span class="diff-cmt">// Every parallel operation follows this structure:</span>
+ExecutorService pool = ThreadPoolManager.compute();
+int threads = ThreadPoolManager.computePoolSize();
+int chunk = Math.max(1, workSize / threads);
+CompletableFuture&lt;?&gt;[] futures = new CompletableFuture[numTasks];
+
+for (int t = 0; t &lt; futures.length; t++) {
+    int from = t * chunk;
+    int to = Math.min(from + chunk, workSize);
+    futures[t] = CompletableFuture.runAsync(() -&gt; {
+        <span class="diff-cmt">// each thread processes its chunk</span>
+        processChunk(data, from, to);
+    }, pool);
+}
+CompletableFuture.allOf(futures).join();</code></pre>
+
+<h3>Two parallelism thresholds:</h3>
+
+<table>
+  <tr><th>Threshold</th><th>Value</th><th>Used For</th></tr>
+  <tr><td><span class="inline-code">PARALLEL_THRESHOLD</span></td><td>50,000 elements</td><td>Element-wise ops, reductions, transpose</td></tr>
+  <tr><td><span class="inline-code">MATMUL_PARALLEL_OPS</span></td><td>2,000,000 FLOPs</td><td>Matrix multiplication (m&times;n&times;k)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2><span class="num">03</span> &mdash; Bugs Found &amp; Fixed</h2>
+
+<!-- Bug 1 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> DenseLayer bias gradient: sumRows vs sumCols</h3>
+
+<p>The backward pass computed the bias gradient as <span class="inline-code">gradient.sumRows()</span>,
+returning shape <span class="inline-code">(batchSize, 1)</span> instead of <span class="inline-code">(1, outSize)</span>.
+The bias is shape <span class="inline-code">(1, outSize)</span>, so this was a shape mismatch that produced
+silently wrong gradients.</p>
+
+<pre><code><span class="diff-del">// BEFORE (WRONG) — bias gradient has wrong shape</span>
+bGrad = gradient.sumRows();     <span class="diff-cmt">// returns (batchSize, 1)</span>
+
+<span class="diff-add">// AFTER (CORRECT) — sum across batch dimension</span>
+bGrad = gradient.sumCols();     <span class="diff-cmt">// returns (1, outSize) ✓</span></code></pre>
+
+<div class="callout danger">
+  <strong>This bug meant the bias was never updated correctly.</strong>
+  Every neuron's bias gradient was a single number (sum of all samples)
+  instead of a per-output vector. Training would still appear to work
+  but accuracy would be 5&ndash;10% lower than it should be.
+</div>
+</div>
+
+<!-- Bug 2 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> SGD velocity array not initialized</h3>
+
+<p>When using SGD with momentum, <span class="inline-code">velocityW</span> and <span class="inline-code">velocityB</span>
+were declared but never initialized before being accessed. Calling <span class="inline-code">velocityW.get(idx)</span>
+threw a NullPointerException.</p>
+
+<pre><code><span class="diff-del">// BEFORE (NPE)</span>
+private void initVelocity(List&lt;Layer&gt; layers) {
+    <span class="diff-cmt">// velocityW was never assigned!</span>
+    for (Layer layer : layers) {
+        if (layer instanceof DenseLayer dense) {
+            velocityW.add(new double[...]);  <span class="diff-cmt">// NPE here</span>
+        }
+    }
+}
+
+<span class="diff-add">// AFTER</span>
+private void initVelocity(List&lt;Layer&gt; layers) {
+    velocityW = new ArrayList&lt;&gt;();   <span class="diff-cmt">// ← initialized first</span>
+    velocityB = new ArrayList&lt;&gt;();   <span class="diff-cmt">// ← initialized first</span>
+    for (Layer layer : layers) {
+        if (layer instanceof DenseLayer dense) {
+            velocityW.add(new double[dense.weights().size()]);
+            velocityB.add(new double[dense.bias().size()]);
+        }
+    }
+}</code></pre>
+</div>
+
+<!-- Bug 3 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> ThreadPoolManager.computePoolSize() returning 0</h3>
+
+<p>On machines with unusual thread configurations, <span class="inline-code">getPoolSize()</span>
+could return 0, causing a division-by-zero in chunk calculations. The fix:
+return <span class="inline-code">DEFAULT_CORE</span> as a fallback.</p>
+
+<pre><code><span class="diff-del">// BEFORE — potential div-by-zero</span>
+public static int computePoolSize() {
+    if (pool instanceof ThreadPoolExecutor tpe) {
+        int size = tpe.getPoolSize();
+        return size;  <span class="diff-cmt">// could be 0!</span>
+    }
+    return DEFAULT_CORE;
+}
+
+<span class="diff-add">// AFTER — safe fallback</span>
+public static int computePoolSize() {
+    if (pool instanceof ThreadPoolExecutor tpe) {
+        int size = tpe.getPoolSize();
+        return size > 0 ? size : DEFAULT_CORE;
+    }
+    return DEFAULT_CORE;
+}</code></pre>
+</div>
+
+<!-- Bug 4 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> Gradient clipping BEFORE backward (NPE)</h3>
+
+<p>The <span class="inline-code">Trainer.fit()</span> method called <span class="inline-code">clip()</span>
+<em>before</span> <span class="inline-code">backward()</span>. At that point, all gradient tensors were
+<span class="inline-code">null</span>, causing NullPointerException inside the clipper.</p>
+
+<pre><code><span class="diff-del">// BEFORE — gradients are null at this point</span>
+optimizer.step(network.getLayers(), learningRate);
+gradientClipper.clip(network.getLayers());    <span class="diff-cmt">// NPE!</span>
+network.backward(grad);
+
+<span class="diff-add">// AFTER — correct order: backward → clip → step</span>
+network.backward(grad);
+gradientClipper.clip(network.getLayers());    <span class="diff-cmt">// gradients exist ✓</span>
+optimizer.step(network.getLayers(), learningRate);</code></pre>
+
+<div class="callout warning">
+  <strong>This same bug existed in all 3 <span class="inline-code">fit()</span> overloads
+  and in <span class="inline-code">EarlyStoppingTrainer</span>.</strong>
+  Four places fixed with the same reordering.
+</div>
+</div>
+
+<!-- Bug 5 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> Optimizer null-guard for non-Dense layers</h3>
+
+<p>When <span class="inline-code">Dropout</span>, <span class="inline-code">ReLU</span>, or
+<span class="inline-code">Softmax</span> layers appeared in the layer list, the optimizer tried to
+cast them to <span class="inline-code">DenseLayer</span> via <span class="inline-code">instanceof</span>.
+While this skipped them, a second code path accessed <span class="inline-code">weightsGradient()</span>
+without null-checking, crashing when gradients hadn't been computed yet.</p>
+
+<pre><code><span class="diff-add">// Added to ALL 5 optimizers (SGD, Adam, AdamW, RMSProp, AdaGrad):</span>
+if (dense.weightsGradient() == null) { idx++; continue; }</code></pre>
+</div>
+
+<!-- Bug 6 -->
+<div class="step bug">
+<h3><span class="badge critical">CRITICAL</span> Softmax backward double-applying Jacobian</h3>
+
+<p>This was the <strong>root cause of the model not learning at all</strong>.
+The loss stayed at ~2.3 (= log(10) = random guessing) for <em>every</em> architecture
+and optimizer we tried.</p>
+
+<p>The problem: <span class="inline-code">CrossEntropyLoss.backward()</span> already computes
+the combined softmax+cross-entropy gradient <span class="inline-code">(predictions - one_hot) / N</span>.
+Then <span class="inline-code">Softmax.backward()</span> applied the full Jacobian <strong>again</strong>,
+squashing all gradients toward zero.</p>
+
+<pre><code><span class="diff-del">// BEFORE — applies Jacobian J to an already-combined gradient</span>
+// Grad arrives as: (softmax_output - one_hot) / batchSize  (CORRECT combined grad)
+// Softmax then computes: J * grad = J * (p - y) / N  (WRONG — double application!)
+@Override
+public Tensor backward(Tensor gradient) {
+    for (int i = 0; i &lt; rows; i++) {
+        for (int j = 0; j &lt; cols; j++) {
+            double s = lo[offset + j];
+            double sum = 0;
+            for (int k = 0; k &lt; cols; k++) {
+                double sk = lo[offset + k];
+                sum += gd[offset + k] * sk * ((j == k ? 1 : 0) - s);  <span class="diff-cmt">// Jacobian multiply</span>
+            }
+            rd[offset + j] = sum;
+        }
+    }
+}
+
+<span class="diff-add">// AFTER — pass through (combined gradient is already correct)</span>
+@Override
+public Tensor backward(Tensor gradient) {
+    return gradient;  <span class="diff-cmt">// CrossEntropyLoss already computed the right thing</span>
+}</code></pre>
+
+<div class="callout danger">
+  <strong>Proof it was broken:</strong> A simple <code>Dense(784→128) → ReLU → Dense(128→10) → Softmax</code>
+  with SGD lr=0.1, trained for 10 epochs on Fashion-MNIST, achieved
+  <strong>10.0% accuracy</strong> (random) and loss stuck at 2.3026.
+  <br><br>
+  <strong>After fix:</strong> The same network dropped loss to <strong>0.02</strong> in 500 steps
+  on a fixed batch and achieved <strong>85%+ accuracy</strong> in 10 epochs.
+</div>
+</div>
+
+<!-- Bug 7 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> Stale cached transpose after optimizer step</h3>
+
+<p>To avoid allocating a new transposed Tensor every forward pass, we added a
+<span class="inline-code">cachedTranspose</span> field to <span class="inline-code">DenseLayer</span>.
+The bug: the cache was computed once at construction and never invalidated when the optimizer
+modified the weights. Every forward pass after the first optimizer step used <em>stale</em> weights.</p>
+
+<pre><code><span class="diff-add">// Fix: invalidate cache after every weight modification</span>
+public void invalidateTranspose() {
+    this.cachedTranspose = null;
+}
+
+// Lazy recomputation on next forward:
+private Tensor getCachedTranspose() {
+    if (cachedTranspose == null) {
+        cachedTranspose = weights.transpose();
+    }
+    return cachedTranspose;
+}
+
+// Called in every optimizer after modifying weights AND in update():
+dense.invalidateTranspose();</code></pre>
+</div>
+
+<!-- Bug 8 -->
+<div class="step bug">
+<h3><span class="badge critical">CRITICAL</span> DataLoader shuffles labels but NOT images</h3>
+
+<p>This was the <strong>root cause of the model not learning on full dataset</strong>.
+The DataLoader created shuffled indices, then used them to look up labels but
+sliced images sequentially. Labels didn't match their images.</p>
+
+<pre><code><span class="diff-del">// BEFORE — labels shuffled, images NOT shuffled</span>
+public Batch next() {
+    int start = pos;
+    int end = Math.min(pos + batchSize, images.rows());
+    pos = end;
+    Tensor batchImages = images.sliceRows(start, end);  <span class="diff-cmt">// sequential!</span>
+    int[] batchLabels = new int[end - start];
+    for (int i = 0; i &lt; batchLabels.length; i++)
+        batchLabels[i] = labels[indices[start + i]];   <span class="diff-cmt">// shuffled index!</span>
+    return new Batch(batchImages, batchLabels);
+}
+
+<span class="diff-add">// AFTER — both images AND labels use shuffled indices</span>
+public Batch next() {
+    int start = pos;
+    int end = Math.min(pos + batchSize, images.rows());
+    pos = end;
+    int count = end - start;
+    int cols = images.cols();
+    double[] buf = new double[count * cols];
+    int[] batchLabels = new int[count];
+    for (int i = 0; i &lt; count; i++) {
+        int idx = indices[start + i];
+        System.arraycopy(images.data(), idx * cols, buf, i * cols, cols);
+        batchLabels[i] = labels[idx];
+    }
+    return new Batch(Tensor.fromFlat(buf, count, cols), batchLabels);
+}</code></pre>
+
+<div class="callout danger">
+  <strong>Proof it was broken:</strong> Training on 2 alternating fixed batches (same
+  <code>sliceRows</code> range every time) worked perfectly &mdash; 73% accuracy in epoch 1.
+  Training via DataLoader with shuffled indices gave <strong>10% accuracy</strong> (random)
+  stuck at loss 2.3 for all 5 epochs.
+  <br><br>
+  <strong>After fix:</strong> Same architecture achieved <strong>86%+ accuracy</strong> in 5 epochs
+  with the full dataset.
+</div>
+</div>
+
+<!-- Bug 9 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> Race condition in DenseLayer parallel backward</h3>
+
+<p>When <span class="inline-code">futures.length > threads</span> (ceiling division),
+the index mapping <span class="inline-code">tid = t % threads</span> caused two futures
+to share the same partial accumulator &mdash; a data race on concurrent
+<span class="inline-code">+=</span> operations.</p>
+
+<pre><code><span class="diff-del">// BEFORE — data race when futures.length > threads</span>
+double[][] partialDW = new double[threads][totalWeightGrad];  <span class="diff-cmt">// sized to threads</span>
+for (int t = 0; t &lt; futures.length; t++) {
+    final int tid = t % threads;  <span class="diff-cmt">// wraps! two futures → same tid</span>
+    futures[t] = CompletableFuture.runAsync(() -> {
+        double[] pdw = partialDW[tid];  <span class="diff-cmt">// two threads write += here</span>
+        ...
+    }, pool);
+}
+// merge loop only covers `threads` entries — misses excess futures
+
+<span class="diff-add">// AFTER — one accumulator per future, unique index</span>
+int numTasks = (batchSize + chunk - 1) / chunk;
+double[][] partialDW = new double[numTasks][totalWeightGrad];  <span class="diff-cmt">// sized to numTasks</span>
+for (int t = 0; t &lt; numTasks; t++) {
+    final int taskIdx = t;  <span class="diff-cmt">// unique per future, no modulo</span>
+    futures[t] = CompletableFuture.runAsync(() -> {
+        double[] pdw = partialDW[taskIdx];  <span class="diff-cmt">// each thread has its own array</span>
+        ...
+    }, pool);
+}
+// merge loop covers all numTasks entries</code></pre>
+</div>
+
+<!-- Bug 10 -->
+<div class="step bug">
+<h3><span class="badge bug">BUG</span> Race condition in Tensor.sumCols() (same pattern)</h3>
+
+<p>The same <span class="inline-code">t % parallelism</span> pattern existed in
+<span class="inline-code">Tensor.sumCols()</span>, used for bias gradient computation
+and BatchNorm.</p>
+
+<pre><code><span class="diff-del">// BEFORE — same race pattern</span>
+int parallelism = ThreadPoolManager.parallelism();
+double[][] localSums = new double[parallelism][cols];
+final int tid = t % parallelism;  <span class="diff-cmt">// wraps when futures.length > parallelism</span>
+
+<span class="diff-add">// AFTER — sized to numFutures, unique indices</span>
+int numFutures = (rows + chunk - 1) / chunk;
+double[][] localSums = new double[numFutures][cols];  <span class="diff-cmt">// one per future</span>
+final int taskIdx = t;  <span class="diff-cmt">// direct index, no modulo</span></code></pre>
+</div>
+
+<!-- ============================================================ -->
+<h2><span class="num">04</span> &mdash; Performance Optimizations</h2>
+
+<!-- Opt 1 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> Cached transposed weights</h3>
+
+<p>Every forward pass called <span class="inline-code">weights.transpose()</span>, allocating a new
+Tensor + copying the entire weight array. With batch size 256 and 4 Dense layers, that's
+<strong>~936 unnecessary Tensor allocations per epoch</strong>.</p>
+
+<p><strong>Solution:</strong> Cache the transpose, recompute lazily only when weights change.
+Reduces GC pressure significantly.</p>
+</div>
+
+<!-- Opt 2 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> Parallel Adam optimizer</h3>
+
+<p>Adam's parameter update loop iterated over ~242K weights sequentially. With
+<span class="inline-code">ThreadPoolManager.parallelFor()</span>, it splits across all cores.</p>
+
+<pre><code><span class="diff-del">// BEFORE — fully sequential</span>
+for (int i = 0; i &lt; dense.weights().size(); i++) {
+    double g = dense.weightsGradient().data()[i];
+    mW.get(idx)[i] = beta1 * mW.get(idx)[i] + (1 - beta1) * g;
+    vW.get(idx)[i] = beta2 * vW.get(idx)[i] + (1 - beta2) * g * g;
+    double mHat = mW.get(idx)[i] / bc1;
+    double vHat = vW.get(idx)[i] / bc2;
+    dense.weights().data()[i] -= effectiveLr * mHat / (Math.sqrt(vHat) + epsilon);
+}
+
+<span class="diff-add">// AFTER — parallel across all cores + local variable caching</span>
+double[] mWData = mW.get(idxCapture);
+double[] vWData = vW.get(idxCapture);
+double invBc1 = 1.0 / bc1;   <span class="diff-cmt">// precompute division</span>
+double invBc2 = 1.0 / bc2;
+
+ThreadPoolManager.parallelFor(0, wLen, i -&gt; {
+    double g = wgData[i];
+    mWData[i] = beta1 * mWData[i] + (1 - beta1) * g;
+    vWData[i] = beta2 * vWData[i] + (1 - beta2) * g * g;
+    double mHat = mWData[i] * invBc1;   <span class="diff-cmt">// multiply instead of divide</span>
+    double vHat = vWData[i] * invBc2;
+    wData[i] -= effectiveLr * mHat / (Math.sqrt(vHat) + epsilon);
+});</code></pre>
+
+<p>Also replaced <span class="inline-code">Math.pow(beta, timestep)</span> with precomputed
+<span class="inline-code">1.0 / bc</span> multiplications, and cached array references in local
+variables to avoid repeated ArrayList.get() indirection.</p>
+</div>
+
+<!-- Opt 3 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> ReLU/Dropout backward: avoid zero-fill allocation</h3>
+
+<p>The old backward paths called <span class="inline-code">Tensor.zeros()</span> then looped over
+every element. The optimized versions allocate the output directly and fill in one pass:</p>
+
+<pre><code><span class="diff-del">// BEFORE — allocates zeroed tensor, then overwrites most elements</span>
+public Tensor backward(Tensor gradient) {
+    Tensor result = Tensor.zeros(lastInput.rows(), lastInput.cols());
+    for (int i = 0; i &lt; len; i++)
+        result.data()[i] = lastInput.data()[i] > 0 ? gradient.data()[i] : 0;
+    return result;
+}
+
+<span class="diff-add">// AFTER — single allocation, single pass, no zero-fill</span>
+public Tensor backward(Tensor gradient) {
+    int len = lastInput.size();
+    Tensor result = new Tensor(lastInput.rows(), lastInput.cols());
+    double[] in = lastInput.data();
+    double[] g = gradient.data();
+    double[] r = result.data();
+    for (int i = 0; i &lt; len; i++)
+        r[i] = in[i] > 0 ? g[i] : 0;
+    return result;
+}</code></pre>
+</div>
+
+<!-- Opt 4 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> CrossEntropyLoss.backward: avoid predictions.copy()</h3>
+
+<pre><code><span class="diff-del">// BEFORE — creates an unnecessary copy of the entire predictions tensor</span>
+Tensor grad = predictions.copy();
+for (int i = 0; i &lt; batchSize; i++)
+    grad.data()[i * classes + labels[i]] -= 1.0;
+grad.multiplyInPlace(1.0 / batchSize);
+
+<span class="diff-add">// AFTER — single allocation, direct array write</span>
+Tensor grad = new Tensor(batchSize, classes);
+System.arraycopy(pd, 0, gd, 0, pd.length);
+for (int i = 0; i &lt; batchSize; i++)
+    gd[i * classes + labels[i]] -= 1.0;
+for (int i = 0; i &lt; gd.length; i++) gd[i] *= scale;</code></pre>
+</div>
+
+<!-- Opt 5 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> Softmax backward: O(n&sup2;) → O(1) pass-through</h3>
+
+<p>The original Softmax backward was an O(rows &times; cols &sup2;) Jacobian multiplication.
+After fixing the CrossEntropyLoss integration, it became a simple pass-through &mdash; zero
+computation, zero allocation:</p>
+
+<pre><code>@Override
+public Tensor backward(Tensor gradient) {
+    return gradient;  <span class="diff-cmt">// zero-cost</span>
+}</code></pre>
+</div>
+
+<!-- ============================================================ -->
+<h2><span class="num">05</span> &mdash; Performance Results</h2>
+
+<table>
+  <tr>
+    <th>Configuration</th>
+    <th>Architecture</th>
+    <th>ms/epoch</th>
+    <th>Accuracy</th>
+  </tr>
+  <tr>
+    <td>Old code (single-threaded)</td>
+    <td>784&rarr;128&rarr;64&rarr;10 (SGD)</td>
+    <td>12,000&ndash;16,000</td>
+    <td>~88%</td>
+  </tr>
+  <tr>
+    <td>New (4 layers, Adam, full regularized)</td>
+    <td>784&rarr;256&rarr;128&rarr;64&rarr;10 (Adam + dropout + gradclip)</td>
+    <td>~24,000</td>
+    <td>training in progress</td>
+  </tr>
+  <tr>
+    <td>New (3 layers, SGD)</td>
+    <td>784&rarr;128&rarr;64&rarr;10 (SGD)</td>
+    <td><strong>~10,000</strong></td>
+    <td>~88%+</td>
+  </tr>
+  <tr>
+    <td>New (2 layers, SGD, Keras-matching)</td>
+    <td>784&rarr;128&rarr;10 (SGD)</td>
+    <td><strong>~7,000</strong></td>
+    <td>~86%</td>
+  </tr>
+</table>
+
+<!-- Layer comparison -->
+<h3>Why 4 layers is slower than 2&ndash;3</h3>
+
+<table>
+  <tr>
+    <th>Layers</th>
+    <th>Architecture</th>
+    <th>Params</th>
+    <th>FLOPs/batch</th>
+    <th>ms/epoch</th>
+  </tr>
+  <tr>
+    <td>2 layers</td>
+    <td>784&rarr;128&rarr;10</td>
+    <td>101,770</td>
+    <td>~32M</td>
+    <td><strong>~7,000</strong></td>
+  </tr>
+  <tr>
+    <td>3 layers</td>
+    <td>784&rarr;128&rarr;64&rarr;10</td>
+    <td>~109K</td>
+    <td>~40M</td>
+    <td><strong>~10,000</strong></td>
+  </tr>
+  <tr>
+    <td>4 layers</td>
+    <td>784&rarr;256&rarr;128&rarr;64&rarr;10</td>
+    <td>242,762</td>
+    <td>~115M</td>
+    <td><strong>~24,000</strong></td>
+  </tr>
+</table>
+
+<div class="callout warning">
+  <strong>The 4-layer model has 3.6x more FLOPs than the 2-layer model</strong>
+  and adds Dropout (mask generation + element-wise multiply) and gradient clipping overhead
+  per layer. The extra time is purely computational &mdash; not a parallelism regression.
+  <br><br>
+  For an apples-to-apples comparison on the same architecture, the parallel version is
+  <strong>2x faster</strong> than the old sequential code (7s vs 12&ndash;16s).
+</div>
+
+<!-- Full code examples -->
+<h3>Full Implementation Examples</h3>
+
+<h4>2-Layer Model (Keras-matching, fastest)</h4>
+
+<pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.SGD;
+import ml.loss.CrossEntropyLoss;
+import ml.layer.DenseLayer;
+
+public class SimpleBench {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+
+        Dataset trainData = MNISTLoader.load(
+            "data/train-images-idx3-ubyte", "data/train-labels-idx1-ubyte");
+        Dataset testData = MNISTLoader.load(
+            "data/t10k-images-idx3-ubyte", "data/t10k-labels-idx1-ubyte");
+
+        // Keras equivalent: Flatten + Dense(128, relu) + Dense(10, softmax)
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new DenseLayer(784, 128));
+        network.add(new ml.activation.ReLU());
+        network.add(new DenseLayer(128, 10));
+        network.add(new ml.activation.Softmax());
+
+        System.out.println(network);
+
+        SGD optimizer = new SGD(0.1);
+        CrossEntropyLoss loss = new CrossEntropyLoss();
+        Trainer trainer = new Trainer(network, loss, optimizer);
+
+        System.out.println("Training 10 epochs, batch=128...\n");
+        long start = System.currentTimeMillis();
+        trainer.fit(trainData.images(), trainData.labels(), 10, 128);
+        long elapsed = System.currentTimeMillis() - start;
+        System.out.printf("\nTraining: %dms (%.0f ms/epoch)%n",
+            elapsed, elapsed / 10.0);
+
+        // Evaluate
+        int correct = 0;
+        int total = testData.images().rows();
+        for (int i = 0; i &lt; total; i += 256) {
+            int end = Math.min(i + 256, total);
+            Tensor batch = testData.images().sliceRows(i, end);
+            int[] preds = network.predictBatch(batch);
+            int[] labels = java.util.Arrays.copyOfRange(testData.labels(), i, end);
+            for (int j = 0; j &lt; preds.length; j++) {
+                if (preds[j] == labels[j]) correct++;
+            }
+        }
+        System.out.printf("Accuracy: %d/%d = %.2f%%%n",
+            correct, total, 100.0 * correct / total);
+    }
+}</code></pre>
+
+<h4>3-Layer Model (more capacity, still fast)</h4>
+
+<pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.SGD;
+import ml.loss.CrossEntropyLoss;
+import ml.layer.DenseLayer;
+
+public class ThreeLayerBench {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+
+        Dataset trainData = MNISTLoader.load(
+            "data/train-images-idx3-ubyte", "data/train-labels-idx1-ubyte");
+        Dataset testData = MNISTLoader.load(
+            "data/t10k-images-idx3-ubyte", "data/t10k-labels-idx1-ubyte");
+
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new DenseLayer(784, 128));
+        network.add(new ml.activation.ReLU());
+        network.add(new DenseLayer(128, 64));
+        network.add(new ml.activation.ReLU());
+        network.add(new DenseLayer(64, 10));
+        network.add(new ml.activation.Softmax());
+
+        System.out.println(network);
+
+        SGD optimizer = new SGD(0.1);
+        CrossEntropyLoss loss = new CrossEntropyLoss();
+        Trainer trainer = new Trainer(network, loss, optimizer);
+
+        System.out.println("Training 10 epochs, batch=128...\n");
+        long start = System.currentTimeMillis();
+        trainer.fit(trainData.images(), trainData.labels(), 10, 128);
+        long elapsed = System.currentTimeMillis() - start;
+        System.out.printf("\nTraining: %dms (%.0f ms/epoch)%n",
+            elapsed, elapsed / 10.0);
+
+        int correct = 0;
+        int total = testData.images().rows();
+        for (int i = 0; i &lt; total; i += 256) {
+            int end = Math.min(i + 256, total);
+            Tensor batch = testData.images().sliceRows(i, end);
+            int[] preds = network.predictBatch(batch);
+            int[] labels = java.util.Arrays.copyOfRange(testData.labels(), i, end);
+            for (int j = 0; j &lt; preds.length; j++) {
+                if (preds[j] == labels[j]) correct++;
+            }
+        }
+        System.out.printf("Accuracy: %d/%d = %.2f%%%n",
+            correct, total, 100.0 * correct / total);
+    }
+}</code></pre>
+
+<h4>4-Layer Model (highest capacity, slowest)</h4>
+
+<pre><code>package examples;
+
+import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.layer.DenseLayer;
+import ml.regularization.Dropout;
+
+public class FourLayerBench {
+    public static void main(String[] args) throws Exception {
+        SeedManager.setSeed(42);
+
+        Dataset trainData = MNISTLoader.load(
+            "data/train-images-idx3-ubyte", "data/train-labels-idx1-ubyte");
+        Dataset testData = MNISTLoader.load(
+            "data/t10k-images-idx3-ubyte", "data/t10k-labels-idx1-ubyte");
+
+        NeuralNetwork network = new NeuralNetwork();
+        network.add(new DenseLayer(784, 256));
+        network.add(new ml.activation.ReLU());
+        network.add(new Dropout(0.2));
+        network.add(new DenseLayer(256, 128));
+        network.add(new ml.activation.ReLU());
+        network.add(new Dropout(0.2));
+        network.add(new DenseLayer(128, 64));
+        network.add(new ml.activation.ReLU());
+        network.add(new DenseLayer(64, 10));
+        network.add(new ml.activation.Softmax());
+
+        System.out.println(network);
+
+        Adam optimizer = new Adam(0.001);
+        CrossEntropyLoss loss = new CrossEntropyLoss();
+        Trainer trainer = new Trainer(network, loss, optimizer);
+
+        System.out.println("Training 10 epochs, batch=256...\n");
+        long start = System.currentTimeMillis();
+        trainer.fit(trainData.images(), trainData.labels(), 10, 256);
+        long elapsed = System.currentTimeMillis() - start;
+        System.out.printf("\nTraining: %dms (%.0f ms/epoch)%n",
+            elapsed, elapsed / 10.0);
+
+        int correct = 0;
+        int total = testData.images().rows();
+        for (int i = 0; i &lt; total; i += 256) {
+            int end = Math.min(i + 256, total);
+            Tensor batch = testData.images().sliceRows(i, end);
+            int[] preds = network.predictBatch(batch);
+            int[] labels = java.util.Arrays.copyOfRange(testData.labels(), i, end);
+            for (int j = 0; j &lt; preds.length; j++) {
+                if (preds[j] == labels[j]) correct++;
+            }
+        }
+        System.out.printf("Accuracy: %d/%d = %.2f%%%n",
+            correct, total, 100.0 * correct / total);
+    }
+}</code></pre>
+
+<!-- ============================================================ -->
+<h2><span class="num">06</span> &mdash; Save &amp; Load (Model Persistence)</h2>
+
+<p>Models can be saved and loaded in two formats: <strong>binary</strong> (compact, fast) and
+<strong>JSON</strong> (human-readable, debuggable). Both preserve all layer types, weights,
+and optimizer state.</p>
+
+<h3>Binary Format</h3>
+<p>Uses <code>DataOutputStream</code> with a magic header (<code>mnist-dl/2.0</code>), LITTLE_ENDIAN
+byte order for double arrays (matching JVM layout), and includes kernel params for Conv2D
+(<code>kernelSize</code>, <code>stride</code>, <code>padding</code>).</p>
+
+<pre><code class="language-java">NeuralNetwork net = buildModel();
+
+// Save (weights + optimizer state)
+net.saveModel("model.bin");
+ModelSerializer.saveOptimizer(optimizer, "opt.bin");
+
+// Load (exact weight match, 0% accuracy loss)
+NeuralNetwork loaded = NeuralNetwork.loadModel("model.bin");
+Adam loadedOpt = (Adam) ModelSerializer.loadOptimizer("opt.bin");</code></pre>
+
+<h3>JSON Format</h3>
+<p>Human-readable JSON with full weight arrays. Useful for debugging, transfer between languages,
+or inspecting learned parameters. Layer type uses fully-qualified Java class names.</p>
+
+<pre><code class="language-java">net.saveJson("model.json");
+NeuralNetwork loaded = NeuralNetwork.loadJson("model.json");</code></pre>
+
+<h3>Supported Layer Types</h3>
+<table class="data-table" style="font-size: 0.9em;">
+  <tr><th>Layer</th><th>Binary</th><th>JSON</th><th>Saved Fields</th></tr>
+  <tr><td>DenseLayer</td><td>Yes</td><td>Yes</td><td>inputSize, outputSize, weights, bias</td></tr>
+  <tr><td>Conv2D</td><td>Yes</td><td>Yes</td><td>in/outChannels, kernelSize, stride, padding, kernels, bias</td></tr>
+  <tr><td>BatchNorm</td><td>Yes</td><td>Yes</td><td>gamma, beta, runningMean, runningVar</td></tr>
+  <tr><td>LayerNorm</td><td>Yes</td><td>Yes</td><td>gamma, beta</td></tr>
+  <tr><td>Embedding</td><td>Yes</td><td>Yes</td><td>vocabSize, embeddingDim, weights</td></tr>
+  <tr><td>Dropout</td><td>Yes</td><td>Yes</td><td>rate</td></tr>
+  <tr><td>LeakyReLU, ELU</td><td>Yes</td><td>Yes</td><td>alpha</td></tr>
+  <tr><td>Flatten, ReLU, Sigmoid, Tanh, Softmax, Swish, GELU, Selu</td><td>Yes</td><td>Yes</td><td>type only (stateless)</td></tr>
+</table>
+
+<h3>Optimizer Persistence</h3>
+<p>All 5 optimizers (Adam, AdamW, SGD, RMSProp, AdaGrad) save and restore their internal state:
+momentum buffers, learning rate schedules, and timestep counters.</p>
+
+<h3>Two Bugs We Fixed</h3>
+<div class="summary-grid" style="grid-template-columns: 1fr 1fr;">
+  <div class="summary-card">
+    <h4 style="color: var(--red)">Bug: Truncated JSON</h4>
+    <p style="color: var(--text-dim)"><code>new FileWriter(f).write(data)</code> without
+    <code>close()</code> left data in an 8KB buffer. For a 2.2MB model, only the first
+    DenseLayer was saved; the rest was silently lost.</p>
+  </div>
+  <div class="summary-card">
+    <h4 style="color: var(--red)">Bug: Stale cachedTranspose</h4>
+    <p style="color: var(--text-dim)">Loading weights via <code>System.arraycopy</code> bypassed
+    the <code>update()</code> path, leaving the cached transpose based on random init.
+    Result: 12% accuracy (near random) despite correct weights.</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2><span class="num">07</span> &mdash; Lessons Learned</h2>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h4>Softmax + CrossEntropy</h4>
+    <p style="color: var(--text-dim)">Almost every deep learning framework computes the combined
+    gradient <span class="inline-code">(p - y) / N</span> in the loss, making the Softmax backward
+    a no-op. If you implement them separately, you must decide which one produces the combined gradient
+    — never both.</p>
+  </div>
+  <div class="summary-card">
+    <h4>Parallel != Faster</h4>
+    <p style="color: var(--text-dim)">CompletableFuture overhead (allocation, queue locks,
+    park/unpark syscalls) is 1&ndash;5ms per operation. For compute under ~1M operations,
+    sequential code is often faster. Only parallelize when the work clearly exceeds the dispatch cost.</p>
+  </div>
+  <div class="summary-card">
+    <h4>Cached State is Dangerous</h4>
+    <p style="color: var(--text-dim)">Caching the transposed weights saved allocation time but
+    introduced a correctness bug: every optimizer modifies weights in-place, invalidating the cache.
+    Any cached computation derived from mutable state needs an explicit invalidation strategy.</p>
+  </div>
+  <div class="summary-card">
+    <h4>DataLoader Shuffle Bug</h4>
+    <p style="color: var(--text-dim)">When shuffling data, you must use the same shuffled indices
+    for <em>both</em> images and labels. The DataLoader used shuffled indices for labels
+    but sequential <code>sliceRows(start, end)</code> for images &mdash; labels never matched
+    their images. Always verify data-label pairing with a simple sanity check.</p>
+  </div>
+  <div class="summary-card">
+    <h4>Parallel Accumulator Race</h4>
+    <p style="color: var(--text-dim)">When splitting work across N threads with ceiling division,
+    you may get &gt;N tasks. Using <code>tid = taskIndex % N</code> to map tasks to accumulators
+    causes two tasks to share one accumulator &mdash; a data race. Always size accumulators to the
+    number of tasks, not threads.</p>
+  </div>
+  <div class="summary-card">
+    <h4>Layer Count vs Speed</h4>
+    <p style="color: var(--text-dim)">More layers &ne; slower (at small scale). 2-layer: 7s/epoch,
+    3-layer: 10s/epoch, 4-layer: 24s/epoch. The 4-layer model has 3.6x more FLOPs &mdash;
+    the extra time is purely computational. Parallelism scales linearly with work, not layers.</p>
+  </div>
+  <div class="summary-card">
+    <h4>Test Gradients Early</h4>
+    <p style="color: var(--text-dim)">A numerical gradient check (finite differences vs. backprop)
+    would have caught the Softmax bug in minutes. Instead we spent hours profiling performance on
+    a model that was fundamentally broken. Always verify correctness before optimizing speed.</p>
+  </div>
+  <div class="summary-card">
+    <h4>Unclosed Writers Lose Data</h4>
+    <p style="color: var(--text-dim)">A FileWriter without <code>close()</code> or
+    <code>try-with-resources</code> may leave data in an 8KB buffer. For a 2.2MB JSON file,
+    only the first ~8KB was flushed to disk &mdash; silently truncating the model. Always use
+    try-with-resources for I/O.</p>
+  </div>
+  <div class="summary-card">
+    <h4>External Mutation Breaks Caches</h4>
+    <p style="color: var(--text-dim)">Deserializing weights via <code>System.arraycopy</code>
+    bypasses the layer's update path, leaving <code>cachedTranspose</code> stale. Any cached
+    mutable state must be invalidated by <em>all</em> code paths that modify the source &mdash;
+    including serialization.</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2><span class="num">08</span> &mdash; Remaining Work</h2>
+
+<table>
+  <tr><th>Task</th><th>Status</th><th>Expected Impact</th></tr>
+  <tr>
+    <td>DataLoader label/image shuffle mismatch</td>
+    <td><span class="badge fix">FIXED</span></td>
+    <td>Model now learns on full dataset (86%+ in 5 epochs)</td>
+  </tr>
+  <tr>
+    <td>DenseLayer parallel backward race condition</td>
+    <td><span class="badge fix">FIXED</span></td>
+    <td>Correctness fix for futures.length &gt; threads</td>
+  </tr>
+  <tr>
+    <td>Tensor.sumCols() parallel race condition</td>
+    <td><span class="badge fix">FIXED</span></td>
+    <td>Correctness fix for bias gradient &amp; BatchNorm</td>
+  </tr>
+  <tr>
+    <td>FileWriter not closed in JSON save</td>
+    <td><span class="badge fix">FIXED</span></td>
+    <td>Unflushed FileWriter truncated JSON at ~8KB, losing layers</td>
+  </tr>
+  <tr>
+    <td>Stale cachedTranspose after weight load</td>
+    <td><span class="badge fix">FIXED</span></td>
+    <td>System.arraycopy overwrites weights but cached transpose reflects random init</td>
+  </tr>
+  <tr>
+    <td>Replace ThreadPoolExecutor with ForkJoinPool</td>
+    <td>Planned</td>
+    <td>15&ndash;25% speedup via work-stealing + help-join</td>
+  </tr>
+  <tr>
+    <td>Raise PARALLEL_THRESHOLD from 50K to ~200K</td>
+    <td>Planned</td>
+    <td>5&ndash;15% by eliminating wasted dispatch for borderline arrays</td>
+  </tr>
+  <tr>
+    <td>Pre-allocate gradient buffers in DenseLayer.backward()</td>
+    <td>Planned</td>
+    <td>5&ndash;10% GC reduction (~3GB/epoch of partial gradient arrays)</td>
+  </tr>
+  <tr>
+    <td>Upgrade to Java 21 for virtual threads</td>
+    <td>Future</td>
+    <td>Eliminates thread pool entirely &mdash; one virtual thread per matrix row</td>
+  </tr>
+</table>
+
+<hr>
+<p style="text-align:center; color: var(--text-dim); margin-top: 40px;">
+  Built from scratch in Java 17 &bull; ~7s/epoch on Fashion-MNIST &bull; 63 source files &bull; JSON + binary save/load
+</p>
+
+</div>
+
+<div class="footer">
+  <p>Generated from the development of <code>mnist-dl</code> &mdash;
+  a from-scratch Java deep learning library for MNIST/Fashion-MNIST.</p>
+</div>
+
+</body>
+</html>

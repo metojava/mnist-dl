@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TextCorpus - mnist-dl Handbook</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<header class="hero" style="padding:28px 24px"><div class="hero-inner" style="grid-template-columns:1fr"><div>
+<div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - 16-projects.html</div>
+<h1 style="font-size:28px">TextCorpus</h1><p class="lead" style="font-size:15px">Common - Embedded positive/negative sentences for offline NLP demos</p></div></div></header>
+<nav class="topnav"><a href="../index.html" class="">Home</a><a href="../01-foundations.html" class="">Foundations</a><a href="../02-layers-core.html" class="">Core</a><a href="../03-layers-norm-pool.html" class="">Norm&Pool</a><a href="../04-layers-recurrent.html" class="">Recurrent</a><a href="../05-layers-attention.html" class="">Attention</a><a href="../06-regularization.html" class="">Regularize</a><a href="../07-activations.html" class="">Activations</a><a href="../08-losses.html" class="">Losses</a><a href="../09-optimizers.html" class="">Optimizers</a><a href="../10-training.html" class="">Training</a><a href="../11-evaluation.html" class="">Eval</a><a href="../12-applications.html" class="">Apps</a><a href="../13-full-example.html" class="">FullEx</a><a href="../14-appendix.html" class="">Appendix</a><a href="../15-examples.html" class="">Examples</a><a href="../16-projects.html" class="active">Projects</a><a href="../17-performance.html" class="">Perf</a></nav>
+<div class="shell"><nav class="sidebar"><h3>Contents</h3><ul class="toc"><li><a href="../index.html">Home</a></li><li><a href="../01-foundations.html">Foundations</a></li><li><a href="../02-layers-core.html">Core</a></li><li><a href="../03-layers-norm-pool.html">Norm&Pool</a></li><li><a href="../04-layers-recurrent.html">Recurrent</a></li><li><a href="../05-layers-attention.html">Attention</a></li><li><a href="../06-regularization.html">Regularize</a></li><li><a href="../07-activations.html">Activations</a></li><li><a href="../08-losses.html">Losses</a></li><li><a href="../09-optimizers.html">Optimizers</a></li><li><a href="../10-training.html">Training</a></li><li><a href="../11-evaluation.html">Eval</a></li><li><a href="../12-applications.html">Apps</a></li><li><a href="../13-full-example.html">FullEx</a></li><li><a href="../14-appendix.html">Appendix</a></li><li><a href="../15-examples.html">Examples</a></li><li><a href="../16-projects.html">Projects</a></li><li><a href="../17-performance.html">Perf</a></li></ul><div class="divider"></div><div style="font-size:12px;color:var(--muted)">File: <code>projects/common-TextCorpus.html</code></div></nav>
+<main class="content"><section class="card"><div class="eyebrow">projects/common/TextCorpus.java</div><h2>TextCorpus</h2><p class="muted"><b>Common</b> - Embedded positive/negative sentences for offline NLP demos</p><h3>ML principles</h3><p>Embedded positive/negative sentences for offline NLP demos</p><h3>Full source</h3><pre><code>package projects.common;
+
+import java.util.List;
+import java.util.Map;
+
+/** Embedded mini-corpora so every NLP project runs offline. */
+public final class TextCorpus {
+    private TextCorpus() {}
+
+    public static final List&lt;String&gt; POSITIVE = List.of(
+        &quot;this movie was absolutely wonderful and moving&quot;,
+        &quot;a brilliant film with superb acting and a great story&quot;,
+        &quot;loved every minute of it truly delightful&quot;,
+        &quot;one of the best films i have seen this year&quot;,
+        &quot;fantastic direction and a powerful performance&quot;,
+        &quot;heartwarming funny and beautifully shot&quot;,
+        &quot;an instant classic i enjoyed it thoroughly&quot;,
+        &quot;the cast was excellent and the plot kept me hooked&quot;,
+        &quot;wonderful storytelling with memorable characters&quot;,
+        &quot;amazing visuals and a perfect soundtrack&quot;,
+        &quot;i was captivated from start to finish&quot;,
+        &quot;a joyful experience highly recommend it&quot;,
+        &quot;great fun for the whole family&quot;,
+        &quot;the best comedy in years laugh out loud funny&quot;,
+        &quot;stunning cinematography and brilliant dialogue&quot;,
+        &quot;an absolute masterpiece of modern cinema&quot;,
+        &quot;charming witty and full of heart&quot;,
+        &quot;excellent pacing never a dull moment&quot;,
+        &quot;superb acting from the entire cast&quot;,
+        &quot;a feel good movie that delivers pure joy&quot;,
+        &quot;impressive bold and utterly engaging&quot;,
+        &quot;the story was touching and the ending perfect&quot;,
+        &quot;brilliant script executed flawlessly&quot;,
+        &quot;wonderful performances across the board&quot;,
+        &quot;i loved it a truly great night at the movies&quot;,
+        &quot;beautiful moving and unforgettable&quot;,
+        &quot;a delightful surprise packed with charm&quot;,
+        &quot;outstanding in every way possible&quot;,
+        &quot;terrific action scenes and strong characters&quot;,
+        &quot;genuinely funny warm and clever&quot;,
+        &quot;the film exceeded all my expectations&quot;,
+        &quot;magnificent a triumph of filmmaking&quot;,
+        &quot;enjoyable from the first frame to the last&quot;,
+        &quot;a wonderful tale told with skill and passion&quot;,
+        &quot;fresh inventive and thoroughly entertaining&quot;,
+        &quot;top notch production values and great music&quot;,
+        &quot;smart sharp and satisfying&quot;,
+        &quot;an excellent addition to the genre&quot;,
+        &quot;loved the characters and the heartfelt story&quot;,
+        &quot;absolutely fantastic would watch again&quot;);
+
+    public static final List&lt;String&gt; NEGATIVE = List.of(
+        &quot;this movie was terrible and painfully boring&quot;,
+        &quot;a complete waste of time and money&quot;,
+        &quot;awful acting and a boring predictable plot&quot;,
+        &quot;one of the worst films i have ever suffered through&quot;,
+        &quot;poorly directed and utterly forgettable&quot;,
+        &quot;dull slow and completely joyless&quot;,
+        &quot;a disaster from start to finish&quot;,
+        &quot;the cast seemed lost and the plot made no sense&quot;,
+        &quot;weak writing ruined an interesting premise&quot;,
+        &quot;ugly visuals and an annoying soundtrack&quot;,
+        &quot;i could not wait for it to end&quot;,
+        &quot;a tedious mess avoid at all costs&quot;,
+        &quot;not fun at all painful to sit through&quot;,
+        &quot;the worst comedy in years not even slightly funny&quot;,
+        &quot;murky cinematography and clunky dialogue&quot;,
+        &quot;an absolute failure of storytelling&quot;,
+        &quot;lifeless cold and forgettable&quot;,
+        &quot;terrible pacing every scene dragged&quot;,
+        &quot;wooden acting from everyone on screen&quot;,
+        &quot;a depressing chore of a movie&quot;,
+        &quot;uninspired lazy and boring&quot;,
+        &quot;the story was incoherent and the ending awful&quot;,
+        &quot;a bad script badly executed&quot;,
+        &quot;poor performances all around&quot;,
+        &quot;i hated it a complete waste of an evening&quot;,
+        &quot;ugly mean spirited and instantly forgettable&quot;,
+        &quot;a disappointment from beginning to end&quot;,
+        &quot;awful in every conceivable way&quot;,
+        &quot;laughable action scenes and hollow characters&quot;,
+        &quot;neither funny nor clever just dull&quot;,
+        &quot;the film fell far below my expectations&quot;,
+        &quot;a miserable failure of a film&quot;,
+        &quot;unwatchable from the first frame&quot;,
+        &quot;a tired retelling with no passion&quot;,
+        &quot;stale derivative and thoroughly boring&quot;,
+        &quot;cheap looking with terrible music&quot;,
+        &quot;shallow pointless and unsatisfying&quot;,
+        &quot;a poor excuse for a movie&quot;,
+        &quot;hated the characters and the contrived story&quot;,
+        &quot;absolutely terrible would never watch again&quot;);
+
+    public static final Map&lt;String, List&lt;String&gt;&gt; HEADLINES = Map.of(
+        &quot;sports&quot;, List.of(
+            &quot;lakers win championship in overtime thriller&quot;,
+            &quot;striker scores hat trick in world cup qualifier&quot;,
+            &quot;olympic swimmer breaks world record final&quot;,
+            &quot;tennis star returns to grand slam victory&quot;,
+            &quot;quarterback signs record contract extension&quot;,
+            &quot;united defeats rivals in derby classic&quot;,
+            &quot;marathon champion targets new personal best&quot;,
+            &quot;coach announces retirement after title run&quot;,
+            &quot;rookie pitcher throws no hitter debut&quot;,
+            &quot;boxing title fight ends dramatic knockout&quot;,
+            &quot;cyclist wins tour stage mountain finish&quot;,
+            &quot;goalkeeper penalty saves clinch cup&quot;),
+        &quot;politics&quot;, List.of(
+            &quot;senate passes sweeping infrastructure bill&quot;,
+            &quot;president signs executive order climate policy&quot;,
+            &quot;election results spark coalition talks&quot;,
+            &quot;lawmakers debate tax reform package&quot;,
+            &quot;diplomats meet summit trade agreement&quot;,
+            &quot;parliament votes budget austerity plan&quot;,
+            &quot;governor declares emergency relief funding&quot;,
+            &quot;minister resigns amid corruption probe&quot;,
+            &quot;voters approve ballot minimum wage&quot;,
+            &quot;cabinet reshuffle follows polling slump&quot;,
+            &quot;congress hearings examine campaign finance&quot;,
+            &quot;mayor unveils housing affordability plan&quot;),
+        &quot;technology&quot;, List.of(
+            &quot;new ai model beats benchmark language tasks&quot;,
+            &quot;startup unveils foldable smartphone display&quot;,
+            &quot;quantum computer achieves error correction milestone&quot;,
+            &quot;chipmaker launches faster gpu datacenter&quot;,
+            &quot;open source database release boosts performance&quot;,
+            &quot;autonomous vehicle completes cross country trial&quot;,
+            &quot;battery breakthrough promises longer range evs&quot;,
+            &quot;cybersecurity firm patches critical zero day&quot;,
+            &quot;satellite internet service expands coverage&quot;,
+            &quot;robot learns dexterous manipulation tasks&quot;,
+            &quot;cloud provider cuts pricing enterprise plans&quot;,
+            &quot;researchers demo brain computer interface typing&quot;),
+        &quot;business&quot;, List.of(
+            &quot;stocks rally as fed signals rate pause&quot;,
+            &quot;retail giant reports record quarterly earnings&quot;,
+            &quot;merger creates largest semiconductor company&quot;,
+            &quot;oil prices climb supply concerns persist&quot;,
+            &quot;bank raises growth forecast global economy&quot;,
+            &quot;airline orders hundreds fuel efficient jets&quot;,
+            &quot;housing market cools mortgage rates rise
+... (truncated, see file)</code></pre><div class="callout">Run: <span class="kbd">mvn compile exec:java -Dexec.mainClass=projects.common.TextCorpus</span></div></section></main></div>
+</body></html>

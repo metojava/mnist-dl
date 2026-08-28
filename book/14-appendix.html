@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Appendix - API Reference & Cheatsheet - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Appendix</h1>
+      <p class="lead" style="font-size:15px">Cheatsheet, decision tree, pitfalls, build and run</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="active">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="active">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>Appendix · API Reference & Cheatsheet</h2>
+
+  <h3>Build & Run</h3>
+<pre><code>mvn compile                          # compile all
+mvn test                             # JUnit 5 (TensorTest, ActivationTest, etc.)
+mvn exec:java -Dexec.mainClass=examples.MNISTClassification
+mvn exec:java -Dexec.mainClass=projects.vision.MnistClassifier        # P01
+mvn exec:java -Dexec.mainClass=projects.nlp.SentimentAnalyzer         # P06
+mvn exec:java -Dexec.mainClass=projects.tabular.IrisClassifier        # P12
+mvn exec:java -Dexec.mainClass=projects.timeseries.TemperatureForecast # P18
+mvn package -DskipTests              # jar in target/
+</code></pre>
+
+  <h3>Choosing components — decision tree</h3>
+<pre><code>Task = classify images?       → Conv2D + MaxPool + Dense + CrossEntropy + Adam + Softmax
+Task = classify text?         → Embedding/Vocab + LSTM or TransformerBlock + CrossEntropy + AdamW
+Task = tabular (few cols)?    → Dense(4-64) + ReLU + Dropout + CrossEntropy/MSE + Adam
+Task = forecast next value?   → LSTMLayer/GRULayer (returnSequences?) + Dense + MSELoss + Adam
+Task = detect anomaly?        → Dense Autoencoder 784→64→784 + MSELoss (threshold on recon error)
+Task = imbalanced binary?     → Dense + Sigmoid + FocalLoss (or BCE + class weights via sampling)
+Task = sequence alignment?    → LSTM + CTCLoss (blank token)
+Need sparse / large vocab?    → AdaGrad or Adam + Embedding + FocalLoss
+Need best generalization?     → AdamW + WeightDecay + GradientClipper + Cosine/Warmup scheduler + EarlyStopping</code></pre>
+
+  <h3>Common pitfalls</h3>
+  <ul>
+    <li><b>Shape mismatch:</b> <code>NeuralNetwork.add</code> checks <code>prev.outputSize == next.inputSize</code> for Dense/BN/LN. Pool/Activation/Flatten skip checks (<code>-1</code>). Conv2D infers <code>H</code> — ensure <code>cols</code> is a perfect square × channels.</li>
+    <li><b>Forgetting <code>training=true</code>:</b> Dropout and augmentation are no-ops when <code>false</code>. Always pass <code>true</code> in the training loop (Trainer does).</li>
+    <li><b>Loss/activation mismatch:</b> CrossEntropy expects Softmax probs; BCE expects Sigmoid; MSE expects linear. Mismatch gives NaN or plateau.</li>
+    <li><b>Learning rate too high:</b> Start 0.001 for Adam, 0.01 for SGD. Use GradientClipper(5.0) to avoid explosions in RNNs.</li>
+    <li><b>Not shuffling:</b> DataLoader shuffles by default — keep it for training, disable for deterministic eval.</li>
+  </ul>
+
+  <h3>Minimal import set</h3>
+<pre><code>import ml.core.Tensor;
+import ml.core.SeedManager;
+import ml.network.NeuralNetwork;
+import ml.training.*;
+import ml.optimizer.Adam;
+import ml.loss.CrossEntropyLoss;
+import ml.evaluation.Evaluator;</code></pre>
+
+  <p class="muted" style="margin-top:18px">Handbook generated for <code>mnist-dl v2.0</code> · Source of truth is <code>src/main/java/ml/**</code> · This HTML is self-contained — save it, print it, or host it statically. Feedback: <a href="https://github.com/anomalyco/opencode">opencode</a>.</p>
+</section>
+
+  </section>
+    <div class="page-nav">
+      <a href="13-full-example.html"><span class="label">Previous</span><span class="title">Full Example</span></a>
+      <span></span>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Part II - Core Layers - mnist-dl Handbook</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" style="padding:28px 24px">
+  <div class="hero-inner" style="grid-template-columns:1fr">
+    <div>
+      <div class="eyebrow" style="color:#a5b4fc">mnist-dl v2.0 - Java 17 - Maven - Book</div>
+      <h1 style="font-size:30px">Core Layers</h1>
+      <p class="lead" style="font-size:15px">Dense, Conv2D, Flatten, Embedding</p>
+    </div>
+  </div>
+</header>
+<nav class="topnav"><a href="index.html" class="">Home</a><a href="01-foundations.html" class="">Foundations</a><a href="02-layers-core.html" class="active">Core</a><a href="03-layers-norm-pool.html" class="">Norm&Pool</a><a href="04-layers-recurrent.html" class="">Recurrent</a><a href="05-layers-attention.html" class="">Attention</a><a href="07-activations.html" class="">Activations</a><a href="08-losses.html" class="">Losses</a><a href="09-optimizers.html" class="">Optimizers</a><a href="10-training.html" class="">Training</a><a href="11-evaluation.html" class="">Eval</a><a href="12-applications.html" class="">Apps</a><a href="13-full-example.html" class="">FullEx</a><a href="14-appendix.html" class="">Appendix</a><a href="15-examples.html" class="">Examples</a><a href="16-projects.html" class="">Projects</a><a href="17-performance.html" class="">Perf</a><a href="18-nlp.html" class="">NLP</a><a href="19-transformers.html" class="">Transformers</a><a href="20-llm.html" class="">LLM</a><a href="21-patterns.html" class="">Patterns</a><a href="22-persistence.html" class="">Save/Load</a></nav>
+<div class="shell">
+  <nav class="sidebar">
+    <h3>Contents</h3>
+    <ul class="toc"><li><a href="index.html" class="">Home</a></li>
+<li><a href="01-foundations.html" class="">1 · Foundations</a></li>
+<li><a href="02-layers-core.html" class="active">2 · Core</a></li>
+<li><a href="03-layers-norm-pool.html" class="">3 · Norm&Pool</a></li>
+<li><a href="04-layers-recurrent.html" class="">4 · Recurrent</a></li>
+<li><a href="05-layers-attention.html" class="">5 · Attention</a></li>
+<li><a href="07-activations.html" class="">7 · Activations</a></li>
+<li><a href="08-losses.html" class="">8 · Losses</a></li>
+<li><a href="09-optimizers.html" class="">9 · Optimizers</a></li>
+<li><a href="10-training.html" class="">10 · Training</a></li>
+<li><a href="11-evaluation.html" class="">11 · Evaluation</a></li>
+<li><a href="12-applications.html" class="">12 · Apps</a></li>
+<li><a href="13-full-example.html" class="">13 · FullEx</a></li>
+<li><a href="14-appendix.html" class="">Appendix</a></li>
+<li><a href="15-examples.html" class="">15 · Examples</a></li>
+<li><a href="16-projects.html" class="">16 · Projects</a></li>
+<li><a href="17-performance.html" class="">17 · Performance</a></li>
+<li><a href="18-nlp.html" class="">18 · NLP</a></li>
+<li><a href="19-transformers.html" class="">19 · Transformers</a></li>
+<li><a href="20-llm.html" class="">20 · LLM</a></li>
+<li><a href="21-patterns.html" class="">21 · Patterns</a></li>
+<li><a href="22-persistence.html" class="">22 · Save/Load</a></li></ul>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--muted)">Code font +4px - Each page is standalone - Use top nav to jump</div>
+  </nav>
+  <main class="content">
+    <section class="card">
+  <h2>4 · Core Layers: Dense, Conv2D, Flatten, Embedding</h2>
+
+  
+<section class="card">
+<div class="eyebrow">Complete Catalogue · 17 Layers</div>
+<h2>All 17 Layers in <code>ml/layer/</code> — Formulas &amp; Parameters</h2>
+<p class="muted">Library implements 17 concrete Layer types + 2 base interfaces. This catalogue is the single source — each sub-page (Core, Norm&Pool, Recurrent, Attention) deep-dives, but this table is your map.</p>
+<table class="table">
+<tr><th>#</th><th>Layer</th><th>File</th><th>Formula</th><th>Params</th><th>Use</th></tr>
+<tr><td>1</td><td><b>DenseLayer</b></td><td>DenseLayer.java:1</td><td>y = x·W<sup>T</sup>+b</td><td>in·out+out</td><td>MLP, heads</td></tr>
+<tr><td>2</td><td><b>Conv2D</b></td><td>Conv2D.java:1</td><td>Σ k·x over kernel window</td><td>out·in·k²+out</td><td>Vision</td></tr>
+<tr><td>3</td><td><b>Flatten</b></td><td>Flatten.java:1</td><td>reshape [B,H·W·C]</td><td>0</td><td>Conv→Dense bridge</td></tr>
+<tr><td>4</td><td><b>Embedding</b></td><td>Embedding.java:1</td><td>lookup id→vector</td><td>V·d</td><td>NLP tokens</td></tr>
+<tr><td>5</td><td><b>BatchNorm</b></td><td>BatchNorm.java:1</td><td>γ·(x−μ)/√(σ²+ε)+β</td><td>2·F</td><td>CNN/MLP, batch&gt;16</td></tr>
+<tr><td>6</td><td><b>LayerNorm</b></td><td>LayerNorm.java:1</td><td>γ·(x−μ_feat)/√(σ²_feat+ε)+β</td><td>2·F</td><td>Transformer/RNN</td></tr>
+<tr><td>7</td><td><b>MaxPool</b></td><td>MaxPool.java:1</td><td>max over kx·k window</td><td>0</td><td>Downsample, invariance</td></tr>
+<tr><td>8</td><td><b>AvgPool</b></td><td>AvgPool.java:1</td><td>mean over window</td><td>0</td><td>Smoothing pool</td></tr>
+<tr><td>9</td><td><b>RNNLayer</b></td><td>RNNLayer.java:1</td><td>h<sub>t</sub>=tanh(Wx x<sub>t</sub>+Wh h<sub>t-1</sub>+b)</td><td>in·h + h·h + h</td><td>Short seq baseline</td></tr>
+<tr><td>10</td><td><b>LSTMLayer</b></td><td>LSTMLayer.java:1</td><td>gates i,f,o,g → c,h (true BPTT)</td><td>4×(in·h + h·h + h)</td><td>Long seq, SOTA</td></tr>
+<tr><td>11</td><td><b>GRULayer</b></td><td>GRULayer.java:1</td><td>z,r,h̃ → h (3 gates)</td><td>3×(in·h + h·h + h)</td><td>Light LSTM alt</td></tr>
+<tr><td>12</td><td><b>SelfAttention</b></td><td>SelfAttention.java:1</td><td>softmax(QKᵀ/√d)·V·W<sub>O</sub></td><td>4·d²</td><td>Single-head attn</td></tr>
+<tr><td>13</td><td><b>MultiHeadAttention</b></td><td>MultiHeadAttention.java:1</td><td>Concat(heads)·W<sub>O</sub></td><td>4·d²</td><td>Multi-pattern attn</td></tr>
+<tr><td>14</td><td><b>TransformerBlock</b></td><td>TransformerBlock.java:1</td><td>LN→MHA→Res → LN→FFN→Res</td><td>4d² + 2·d·ff</td><td>Modern NLP/vision</td></tr>
+<tr><td>—</td><td><b>ActivationLayer</b></td><td>ActivationLayer.java:1</td><td>base: cache lastInput/Output</td><td>0</td><td>Parent of 14 act.</td></tr>
+<tr><td>—</td><td><b>Layer</b> (interface)</td><td>Layer.java:1</td><td>forward/backward/update</td><td>—</td><td>Contract</td></tr>
+<tr><td>—</td><td><b>ActivationFunction</b></td><td>ActivationFunction.java:1</td><td>forward(x), derivative(x)</td><td>—</td><td>Functional API</td></tr>
+</table>
+<div class="callout">Total concrete = <b>14</b> learning + <b>3</b> stateless pool/flatten = <b>17</b> files. With <a href="06-regularization.html">Dropout</a> and <a href="06-regularization.html">Augmentation (RandomFlip etc.)</a> which also implement <code>Layer</code>, the runnable catalogue is ~20 composable blocks.</div>
+<div class="svg-wrap">
+<svg width="740" height="120" viewBox="0 0 740 120"><rect width="740" height="120" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="14" y="18" font-size="12" font-weight="700" fill="#334155">How layers flow — shape example: 28×28 image, batch 32</text>
+<g font-size="10" fill="#334155">
+<rect x="12" y="34" width="90" height="28" rx="7" fill="#eef2ff" stroke="#4f46e5"/><text x="18" y="52">784 (flat)</text>
+<text x="108" y="52">→</text>
+<rect x="124" y="34" width="90" height="28" rx="7" fill="#fff" stroke="#e2e8f0"/><text x="138" y="52">Dense256</text>
+<text x="220" y="52">→</text>
+<rect x="236" y="34" width="70" height="28" rx="7" fill="#fce7f3" stroke="#ec4899"/><text x="248" y="52">ReLU</text>
+<text x="312" y="52">→</text>
+<rect x="328" y="34" width="90" height="28" rx="7" fill="#fff" stroke="#e2e8f0"/><text x="338" y="52">Dense10</text>
+<text x="424" y="52">→</text>
+<rect x="440" y="34" width="80" height="28" rx="7" fill="#dcfce7" stroke="#059669"/><text x="452" y="52">Softmax</text>
+<text x="12" y="84" fill="#64748b">or</text>
+<rect x="12" y="96" width="90" height="18" rx="6" fill="#fef3c7" stroke="#d97706"/><text x="16" y="109" font-size="9">1×28×28</text>
+<text x="108" y="109">→</text><rect x="124" y="96" width="70" height="18" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="132" y="109" font-size="9">Conv16</text>
+<text x="200" y="109">→</text><rect x="216" y="96" width="60" height="18" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="224" y="109" font-size="9">MaxPool</text>
+<text x="282" y="109">→</text><rect x="298" y="96" width="50" height="18" rx="6" fill="#fff" stroke="#e2e8f0"/><text x="306" y="109" font-size="9">Flatten</text>
+</g>
+</svg>
+</div>
+</section>
+
+<h3>DenseLayer — Fully Connected <span class="tag">ml/layer/DenseLayer.java</span></h3>
+  <p>Computes <code>y = x·Wᵀ + b</code> with He-initialized <code>W[outputSize × inputSize]</code>. Backward is parallel sharded; bias broadcasting and weight update are parallel.</p>
+<pre><code>DenseLayer fc1 = new DenseLayer(784, 256); // in=784, out=256
+DenseLayer fc2 = new DenseLayer(256, 10);
+
+NeuralNetwork net = new NeuralNetwork().add(fc1).add(new ReLU()).add(fc2);
+Tensor out = net.forward(batch);          // [batch,10]
+Tensor dInput = fc2.backward(grad);       // returns dL/dx
+fc2.update(0.001);                        // SGD step
+
+// Introspection
+Tensor W = fc1.weights();   // [256,784]
+Tensor b = fc1.bias();      // [1,256]
+Tensor dW = fc1.weightsGradient();
+System.out.println(net.totalParameters());
+
+// Shape guard — throws LayerConfigurationException on mismatch
+new NeuralNetwork().add(new DenseLayer(10,20)).add(new DenseLayer(30,5)); // ❌ throws
+</code></pre>
+  <div class="callout success"><b>When to use:</b> Tabular data, MLP heads, final classifier after Conv/Recurrent stacks. Parameter count = <code>in×out + out</code>.</div>
+
+  <h3>Conv2D — 2D Convolution <span class="tag">ml/layer/Conv2D.java</span></h3>
+  <p>Square images assumed: <code>H = sqrt(cols / inChannels)</code>. Supports stride, padding, multiple output channels. Kernels are <code>Tensor[inChannels·k·k, 1]</code> per output channel.</p>
+<pre><code>// Classic LeNet-style stem for 28×28 grayscale
+Conv2D conv1 = new Conv2D(1, 16, 3);              // 1→16 channels, 3×3 kernel
+Conv2D conv2 = new Conv2D(16, 32, 3, 1, 1, new Random(0)); // stride 1, pad 1
+
+NeuralNetwork cnn = new NeuralNetwork()
+  .add(new Conv2D(1, 16, 3))
+  .add(new ReLU())
+  .add(new MaxPool(2))          // 28→14
+  .add(new Conv2D(16, 32, 3))
+  .add(new ReLU())
+  .add(new MaxPool(2))          // 14→7  (32*7*7 = 1568 features)
+  .add(new Flatten())
+  .add(new DenseLayer(1568, 128))
+  .add(new ReLU())
+  .add(new DenseLayer(128, 10))
+  .add(new Softmax());
+
+// Access kernels
+Tensor k0 = conv1.kernel(0);
+double[] bias = conv1.biases();
+int params = conv1.parameterCount(); // outC*inC*k*k + outC
+</code></pre>
+
+  <h3>Flatten <span class="tag">ml/layer/Flatten.java</span></h3>
+  <p>Reshapes <code>[batch, H·W·C]</code> → <code>[batch, H·W·C]</code> (logically flattens spatial dims for Dense). No parameters, backward is identity reshape.</p>
+<pre><code>Flatten flat = new Flatten();
+NeuralNetwork net2 = new NeuralNetwork().add(new Conv2D(1,8,3)).add(new Flatten()).add(new DenseLayer(-1,64));
+// Note: Flatten reports inputSize/outputSize = -1 so NeuralNetwork skips shape check
+</code></pre>
+
+  <h3>Embedding <span class="tag">ml/layer/Embedding.java</span></h3>
+  <p>Lookup table <code>[vocabSize × embeddingDim]</code>. Input is expected to carry token ids (as doubles) — projects encode via <code>Vocab</code> + bag-of-words or id sequences.</p>
+<pre><code>Embedding emb = new Embedding(5000, 128); // vocab 5k, dim 128
+Tensor ids = Tensor.fromFlat(new double[]{12, 45, 7, 0}, 1, 4);
+Tensor embedded = emb.forward(ids, true); // [1, 4*128] — flattened sequence
+System.out.println(emb.parameterCount()); // 5000*128
+</code></pre>
+  <div class="figure">Tip: For NLP, combine <code>Embedding → LSTMLayer → Dense → Softmax</code>. See Projects P06–P11.</div>
+</section>
+
+<!-- ============ CH5 ============ -->
+</section>
+    <div class="page-nav">
+      <a href="01-foundations.html"><span class="label">Previous</span><span class="title">Foundations</span></a>
+      <a href="03-layers-norm-pool.html"><span class="label">Next</span><span class="title">Norm & Pool</span></a>
+    </div>
+  </main>
+</div>
+</body>
+</html>
