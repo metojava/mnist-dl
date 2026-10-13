@@ -81,11 +81,11 @@ public class NeuralNetwork {
         return output.argmaxRow(0);
     }
 
-    public int predictSingle(double[] input) {
+    public int predictSingle(float[] input) {
 
         Tensor tensor =
                 new Tensor(
-                        new double[][] { input }
+                        new float[][] { input }
                 );
 
         return predict(tensor);

@@ -38,6 +38,11 @@ public class Trainer {
 
         int numberOfSamples = x.rows();
 
+        int imageColumns = x.cols();
+
+        float[] imageData =
+                x.data();
+
         int[] indices =
                 new int[numberOfSamples];
 
@@ -47,6 +52,13 @@ public class Trainer {
 
             indices[i] = i;
         }
+
+        /*
+         * Reusable batch buffers. Garbage avoided for the common
+         * full-size batches; only a fractional final batch allocates.
+         */
+        Tensor batchX = null;
+        int[] batchY = null;
 
         long totalTrainingStart =
                 System.nanoTime();
@@ -80,16 +92,44 @@ public class Trainer {
                 int currentBatchSize =
                         end - start;
 
-                Tensor batchX =
-                        new Tensor(
-                                currentBatchSize,
-                                x.cols()
-                        );
+                /*
+                 * Reuse the batch buffers when the batch is full;
+                 * allocate only for the (usually smaller) last batch.
+                 */
+                if (currentBatchSize == batchSize) {
 
-                int[] batchY =
-                        new int[currentBatchSize];
+                    if (batchX == null ||
+                        batchX.rows() != batchSize) {
 
-                // Copy batch
+                        batchX =
+                                new Tensor(
+                                        batchSize,
+                                        imageColumns
+                                );
+
+                        batchY =
+                                new int[batchSize];
+                    }
+
+                } else {
+
+                    batchX =
+                            new Tensor(
+                                    currentBatchSize,
+                                    imageColumns
+                            );
+
+                    batchY =
+                            new int[currentBatchSize];
+                }
+
+                /*
+                 * Gather the batch rows with a single arraycopy
+                 * each instead of per-element reads.
+                 */
+                float[] batchData =
+                        batchX.data();
+
                 for (int i = 0;
                      i < currentBatchSize;
                      i++) {
@@ -97,16 +137,13 @@ public class Trainer {
                     int index =
                             indices[start + i];
 
-                    for (int j = 0;
-                         j < x.cols();
-                         j++) {
-
-                        batchX.set(
-                                i,
-                                j,
-                                x.get(index, j)
-                        );
-                    }
+                    System.arraycopy(
+                            imageData,
+                            index * imageColumns,
+                            batchData,
+                            i * imageColumns,
+                            imageColumns
+                    );
 
                     batchY[i] =
                             y[index];

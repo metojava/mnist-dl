@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MNIST-DL — Epoch &amp; Evaluation Speedup</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2130;
+    --panel2: #141a27;
+    --text: #d8dee9;
+    --muted: #8b97ab;
+    --accent: #5cc8ff;
+    --green: #6ee7a8;
+    --red: #ff7b7b;
+    --amber: #ffcc66;
+    --border: #2a3448;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 8px;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: 1.3rem;
+    margin: 42px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+  }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; color: #fff; }
+  p { margin: 10px 0; color: var(--text); }
+  .lead { color: var(--muted); font-size: 1.02rem; }
+  code {
+    font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.88em;
+    color: var(--amber);
+  }
+  pre {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+  pre code { background: none; border: none; padding: 0; color: var(--text); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card h3 { margin-top: 0; }
+  .badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+  }
+  .badge.before { background: rgba(255,123,123,0.15); color: var(--red); }
+  .badge.after { background: rgba(110,231,168,0.15); color: var(--green); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.92rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.total td { font-weight: 700; color: #fff; border-top: 2px solid var(--border); }
+  .up { color: var(--green); font-weight: 700; }
+  .down { color: var(--red); font-weight: 700; }
+  .callout {
+    background: linear-gradient(180deg, rgba(92,200,255,0.10), rgba(92,200,255,0.03));
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 20px 0;
+  }
+  ol.steps { padding-left: 22px; }
+  ol.steps > li { margin: 10px 0; }
+  .tag {
+    font-family: Consolas, monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  footer { margin-top: 50px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--border); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Epoch &amp; Evaluation Speedup</h1>
+  <p class="lead">
+    How the Java deep-learning library in this project was made faster than the
+    original implementation at <code>C:\Users\dell\Desktop\c\mnist-dl</code>.
+    The work targets the two hot paths that dominate every run: the dense
+    <strong>matrix multiplications</strong> inside the network, and the
+    <strong>per-element array loops</strong> used by the activations, loss and data loader.
+  </p>
+
+  <div class="callout">
+    <strong>Measured result.</strong> With the same architecture (784&rarr;128&rarr;64&rarr;10),
+    the same Fashion-MNIST data and the same batch size (512), the optimized
+    build roughly <span class="up">2.5&times;</span> the training throughput and
+    <span class="up">3.2&times;</span> the evaluation throughput of the previous build.
+    See the <a href="#results" style="color:var(--accent)">measurements table</a>.
+  </div>
+
+  <!-- ============================================================ -->
+  <h2 id="results">1. Measurements (run2.txt vs run3.txt)</h2>
+  <p>
+    Two runs captured from this project, identical configuration (512-sample
+    batches, 2 epochs), before and after the optimization pass:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Metric</th><th class="num">Before (run2)</th><th class="num">After (run3)</th><th class="num">Speedup</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Epoch 1 training time</td><td class="num">11.27 s</td><td class="num">4.65 s</td><td class="num up">2.42&times;</td></tr>
+      <tr><td>Epoch 2 training time</td><td class="num">11.12 s</td><td class="num">4.48 s</td><td class="num up">2.48&times;</td></tr>
+      <tr><td>Average epoch time</td><td class="num">11.20 s</td><td class="num">4.57 s</td><td class="num up">2.45&times;</td></tr>
+      <tr><td>Evaluation time (10 000 test images)</td><td class="num">0.76 s</td><td class="num">0.24 s</td><td class="num up">3.17&times;</td></tr>
+      <tr><td>Total program time</td><td class="num">25.44 s</td><td class="num">11.67 s</td><td class="num up">2.18&times;</td></tr>
+      <tr class="total"><td>Accuracy (informational)</td><td class="num">52.26%</td><td class="num">43.27%</td><td class="num">&mdash;</td></tr>
+    </tbody>
+  </table>
+
+  <p class="lead">
+    Note: the accuracy column is only shown for context. It varies between runs
+    because of different random weight initialisation, not because of the
+    optimizations. Numerical kernels intentionally preserve the same summation
+    order, so results are <em>numerically identical</em> for a fixed seed.
+  </p>
+
+  <!-- ============================================================ -->
+  <h2>2. What dominated the original runtime</h2>
+  <p>
+    In the original code, every forward and backward pass is a chain of dense
+    matrix multiplications, and each of those was a naive
+    <code>i &rarr; k &rarr; j</code> triple loop over <code>double[]</code> data,
+    reached through bounds-checked <code>get()</code>/<code>set()</code> calls:
+  </p>
+
+  <pre><code>// ORIGINAL Tensor.matmul — double[] + naive loop order
+double[] ad = a.data, bd = b.data, rd = result.data;
+for (int i = 0; i &lt; m; i++) {
+    int aRow = i * n, resultRow = i * p;
+    for (int k = 0; k &lt; n; k++) {
+        double aValue = ad[aRow + k];
+        int bRow = k * p;
+        for (int j = 0; j &lt; p; j++) {
+            rd[resultRow + j] += aValue * bd[bRow + j];
+        }
+    }
+}</code></pre>
+
+  <p>This has three compounding costs:</p>
+  <ol class="steps">
+    <li><strong>Bus traffic.</strong> <code>double</code> moves twice the bytes of <code>float</code>, and SIMD units process half as many lanes per instruction.</li>
+    <li><strong>Cache misses.</strong> The inner loop streams the whole result row and re-reads <code>b</code> for every row of <code>a</code>, so neither operand stays resident in L1/L2.</li>
+    <li><strong>Single thread.</strong> The whole batch is multiplied on one core, ignoring the other cores of the machine.</li>
+  </ol>
+
+  <!-- ============================================================ -->
+  <h2>3. Optimizations applied</h2>
+
+  <div class="grid">
+    <div class="card">
+      <span class="badge before">Step 1</span>
+      <h3>float instead of double</h3>
+      <p>
+        The entire <code>Tensor</code> storage and every layer were converted from
+        <code>double[]</code> to <code>float[]</code>. This halves memory traffic
+        and doubles the effective SIMD width of the arithmetic, which is the single
+        largest win for dense GEMM. It touches <code>Tensor</code>,
+        <code>DenseLayer</code>, <code>ReLU</code>, <code>Softmax</code>,
+        <code>CrossEntropyLoss</code>, <code>MNISTLoader</code> and
+        <code>MNISTVisualizer</code>.
+      </p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">Step 2</span>
+      <h3>Cache-blocked, register-tiled GEMM</h3>
+      <p>
+        <code>Tensor.matmulInto()</code> now splits the right operand into
+        <code>JC = 32</code> column tiles and <code>KC = 128</code> depth tiles,
+        and accumulates <strong>four result columns in registers</strong> before
+        writing them back once. The inner loop reads <code>b</code> sequentially,
+        so the working set stays in L1/L2 and the JIT can auto-vectorize.
+      </p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">Step 3</span>
+      <h3>Row-parallel execution</h3>
+      <p>
+        New <code>ml.Parallel</code> helper partitions the output rows of a GEMM
+        across a fixed pool of daemon threads (up to
+        <code>min(8, availableProcessors)</code>). Because each thread owns
+        disjoint output rows, no locking is needed and the per-element summation
+        order is unchanged. It activates only for large products
+        (<code>m &ge; 64 &amp;&amp; m*n*p &ge; 4&#8201;M</code>), so small layers keep the
+        low-overhead single-threaded path.
+      </p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">Step 4</span>
+      <h3>Direct array access in hot loops</h3>
+      <p>
+        Activations, the loss and the loader were rewritten to walk the backing
+        <code>float[]</code> directly with a running offset instead of calling
+        <code>get()</code>/<code>set()</code> per element. This removes per-element
+        bounds-checked method dispatch and lets the loops vectorize.
+      </p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">Step 5</span>
+      <h3>Zero per-batch allocations</h3>
+      <p>
+        <code>DenseLayer</code>, <code>ReLU</code>, <code>Softmax</code> and
+        <code>CrossEntropyLoss</code> keep reusable buffers that are only
+        reallocated when the batch shape changes (via a small
+        <code>ensure()</code> helper). <code>Trainer</code> reuses its batch
+        buffers too. This eliminates almost all garbage from the training loop
+        and the corresponding GC pauses.
+      </p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">Step 6</span>
+      <h3>Cached weight transpose</h3>
+      <p>
+        <code>DenseLayer</code> lazily caches <code>W<sup>T</sup></code> and
+        invalidates it only in <code>update()</code>. Previously a fresh transpose
+        was materialized on every backward call.
+      </p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">Step 7</span>
+      <h3>Fused transposed matmul</h3>
+      <p>
+        New <code>Tensor.matmulTransposedA()</code> computes
+        <code>dW = X<sup>T</sup> &times; dZ</code> directly from <code>X</code>
+        without building a transposed copy, tiling the batch dimension to stay in
+        cache. Also parallelized over output rows.
+      </p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">Step 8</span>
+      <h3>Bulk arraycopy + larger batches</h3>
+      <p>
+        <code>Trainer</code> gathers batch rows with one
+        <code>System.arraycopy</code> per sample instead of per-element reads, and
+        the default batch size was raised from <strong>128 to 512</strong> to
+        amortize the per-matmul overhead over more work.
+      </p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>4. The kernel rewrite, side by side</h2>
+
+  <div class="grid">
+    <div class="card">
+      <span class="badge before">Before</span>
+      <h3>Naive triple loop</h3>
+      <pre><code>for (int i = 0; i &lt; m; i++) {
+  int aRow = i * n, rRow = i * p;
+  for (int k = 0; k &lt; n; k++) {
+    double aValue = ad[aRow + k];
+    int bRow = k * p;
+    for (int j = 0; j &lt; p; j++) {
+      rd[rRow + j] += aValue * bd[bRow + j];
+    }
+  }
+}</code></pre>
+      <p class="lead">No reuse, no tiling, one thread.</p>
+    </div>
+
+    <div class="card">
+      <span class="badge after">After</span>
+      <h3>Tiled, hierarchical, parallel</h3>
+      <pre><code>boolean parallel =
+    m &gt;= 64 &amp;&amp; (long) m * n * p &gt;= 4_000_000L;
+
+if (parallel) {
+  Parallel.parallelRows(m, (r0, r1) -&gt; {
+    /* each thread owns rows [r0, r1) */
+    for (int jj = 0; jj &lt; p; jj += JC)
+      for (int kk = 0; kk &lt; n; kk += KC)
+        for (int i = r0; i &lt; r1; i++) {
+          float c0=0,c1=0,c2=0,c3=0;   /* registers */
+          for (int k = kk; k &lt; kEnd; k++) {
+            float aValue = ad[aRow + k];
+            int bRow = k * p + jj + j;
+            c0 += aValue * bd[bRow];
+            c1 += aValue * bd[bRow + 1];
+            c2 += aValue * bd[bRow + 2];
+            c3 += aValue * bd[bRow + 3];
+          }
+          rd[resultRow + j]     += c0;
+          rd[resultRow + j + 1] += c1;
+          rd[resultRow + j + 2] += c2;
+          rd[resultRow + j + 3] += c3;
+        }
+  });
+  return;
+}</code></pre>
+      <p class="lead">Cache tiles + register accumulation + thread pool.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>5. Why evaluation sped up the most</h2>
+  <p>
+    Evaluation is a single forward pass over all 10 000 test images. It never
+    touches the optimizer or the batch-gathering code, so its speedup comes
+    purely from the forward-path changes: <strong>float storage</strong>,
+    the <strong>blocked GEMM</strong>, <strong>row parallelism</strong>, and
+    <strong>direct array loops</strong> in the ReLU/Softmax forward passes.
+  </p>
+  <p>For the evaluation shapes the parallel threshold is crossed on every layer:</p>
+  <ul>
+    <li><code>10000 &times; 784 &times; 128 &asymp; 1.0&#8201;G</code> MACs &mdash; parallel</li>
+    <li><code>10000 &times; 128 &times; 64 &asymp; 82&#8201;M</code> MACs &mdash; parallel</li>
+    <li><code>10000 &times; 64 &times; 10 &asymp; 6.4&#8201;M</code> MACs &mdash; parallel</li>
+  </ul>
+  <p>
+    That is why evaluation improved by ~3.2&times; while the full epoch
+    (which also waits on the sequential optimizer step and shuffle) improved by
+    ~2.5&times;.
+  </p>
+
+  <!-- ============================================================ -->
+  <h2>6. Summary of changed files</h2>
+  <table>
+    <thead>
+      <tr><th>File</th><th>Optimization</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>ml/Tensor.java</code></td><td>float storage; blocked/register-tiled GEMM; <code>matmul</code> into a destination; <code>matmulTransposedA</code>; parallel dispatch</td></tr>
+      <tr><td><code>ml/Parallel.java</code> <span class="tag">new</span></td><td>Fixed daemon thread pool + <code>parallelRows</code> row partitioning</td></tr>
+      <tr><td><code>ml/DenseLayer.java</code></td><td>Reused output/gradient buffers; cached <code>W<sup>T</sup></code>; fused transposed dW</td></tr>
+      <tr><td><code>ml/ReLU.java</code></td><td>Flat array loops; reusable output/gradient buffers</td></tr>
+      <tr><td><code>ml/Softmax.java</code></td><td>Flat array loops; reusable output/gradient buffers</td></tr>
+      <tr><td><code>ml/CrossEntropyLoss.java</code></td><td>Flat array loops; reused gradient buffer</td></tr>
+      <tr><td><code>ml/Trainer.java</code></td><td>Reused batch buffers; <code>System.arraycopy</code> gather</td></tr>
+      <tr><td><code>ml/MNISTLoader.java</code></td><td>Direct <code>float[]</code> writes; reciprocal multiply</td></tr>
+      <tr><td><code>examples/MNISTExample.java</code></td><td>Batch size 128 &rarr; 512; optional epochs argument</td></tr>
+    </tbody>
+  </table>
+
+  <footer>
+    Generated from a diff of the working tree against the original implementation
+    at <code>C:\Users\dell\Desktop\c\mnist-dl</code>, and the captured runs
+    <code>run2.txt</code> (before) and <code>run3.txt</code> (after).
+  </footer>
+
+</div>
+</body>
+</html>

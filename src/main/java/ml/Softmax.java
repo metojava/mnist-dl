@@ -1,61 +1,95 @@
 package ml;
 
+/**
+ * Softmax activation.
+ *
+ * Computed independently for every example in the batch, subtracting
+ * the row maximum for numerical stability.
+ *
+ * Buffers are reused across calls to avoid per-batch allocations.
+ */
 public class Softmax implements Activation {
 
     private Tensor output;
+    private Tensor outputBuffer;
+    private Tensor gradientBuffer;
 
     @Override
     public Tensor forward(Tensor input) {
 
-        output =
-                new Tensor(
+        Tensor out =
+                ensure(
+                        outputBuffer,
                         input.rows(),
                         input.cols()
                 );
 
-        /*
-         * Softmax is calculated independently
-         * for every example in the batch.
-         *
-         * We subtract the maximum value for numerical
-         * stability before calculating exp().
-         */
-        for (int i = 0; i < input.rows(); i++) {
+        outputBuffer =
+                out;
 
-            double max = Double.NEGATIVE_INFINITY;
+        float[] inputData =
+                input.data();
 
-            for (int j = 0; j < input.cols(); j++) {
+        float[] outputData =
+                out.data();
+
+        int rows =
+                input.rows();
+
+        int cols =
+                input.cols();
+
+        int offset = 0;
+
+        for (int i = 0;
+             i < rows;
+             i++) {
+
+            float max =
+                    Float.NEGATIVE_INFINITY;
+
+            for (int j = 0;
+                 j < cols;
+                 j++) {
+
                 max = Math.max(
                         max,
-                        input.get(i, j)
+                        inputData[offset + j]
                 );
             }
 
-            double sum = 0.0;
+            float sum = 0.0f;
 
-            for (int j = 0; j < input.cols(); j++) {
+            for (int j = 0;
+                 j < cols;
+                 j++) {
 
-                double value =
-                        Math.exp(
-                                input.get(i, j) - max
+                float value =
+                        (float) Math.exp(
+                                (double) (inputData[offset + j] - max)
                         );
 
-                output.set(i, j, value);
+                outputData[offset + j] =
+                        value;
 
                 sum += value;
             }
 
-            for (int j = 0; j < input.cols(); j++) {
+            for (int j = 0;
+                 j < cols;
+                 j++) {
 
-                output.set(
-                        i,
-                        j,
-                        output.get(i, j) / sum
-                );
+                outputData[offset + j] /=
+                        sum;
             }
+
+            offset += cols;
         }
 
-        return output;
+        output =
+                out;
+
+        return out;
     }
 
     @Override
@@ -69,32 +103,62 @@ public class Softmax implements Activation {
          * Jacobian-vector product.
          */
         Tensor result =
-                new Tensor(
+                ensure(
+                        gradientBuffer,
                         gradient.rows(),
                         gradient.cols()
                 );
 
-        for (int i = 0; i < output.rows(); i++) {
+        gradientBuffer =
+                result;
 
-            for (int j = 0; j < output.cols(); j++) {
+        float[] gradientData =
+                gradient.data();
 
-                double value = 0.0;
+        float[] resultData =
+                result.data();
 
-                for (int k = 0; k < output.cols(); k++) {
+        float[] outputData =
+                output.data();
 
-                    double delta =
-                            j == k ? 1.0 : 0.0;
+        int cols =
+                gradient.cols();
 
-                    double derivative =
-                            output.get(i, j)
-                            * (delta - output.get(i, k));
+        for (int i = 0;
+             i < gradient.rows();
+             i++) {
+
+            int base =
+                    i * cols;
+
+            for (int j = 0;
+                 j < cols;
+                 j++) {
+
+                float outputValue =
+                        outputData[base + j];
+
+                float value =
+                        0.0f;
+
+                for (int k = 0;
+                     k < cols;
+                     k++) {
+
+                    float delta =
+                            j == k ? 1.0f : 0.0f;
+
+                    float derivative =
+                            outputValue
+                            * (delta - outputData[base + k]);
 
                     value +=
-                            gradient.get(i, k)
+                            gradientData[base + k]
                             * derivative;
                 }
 
-                result.set(i, j, value);
+                resultData[base + j] =
+                        value;
             }
         }
 
@@ -114,5 +178,24 @@ public class Softmax implements Activation {
     @Override
     public int outputSize() {
         return -1;
+    }
+
+    private static Tensor ensure(
+            Tensor tensor,
+            int rows,
+            int cols
+    ) {
+
+        if (tensor == null ||
+            tensor.rows() != rows ||
+            tensor.cols() != cols) {
+
+            return new Tensor(
+                    rows,
+                    cols
+            );
+        }
+
+        return tensor;
     }
 }

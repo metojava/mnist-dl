@@ -111,6 +111,9 @@ public class MNISTLoader {
                             inputSize
                     );
 
+            float[] data =
+                    tensor.data();
+
             /*
              * MNIST stores pixels as unsigned bytes.
              *
@@ -123,6 +126,9 @@ public class MNISTLoader {
                  i < numberOfImages;
                  i++) {
 
+                int offset =
+                        i * inputSize;
+
                 for (int j = 0;
                      j < inputSize;
                      j++) {
@@ -130,11 +136,8 @@ public class MNISTLoader {
                     int pixel =
                             in.readUnsignedByte();
 
-                    tensor.set(
-                            i,
-                            j,
-                            pixel / 255.0
-                    );
+                    data[offset + j] =
+                            pixel * (1.0f / 255.0f);
                 }
             }
 

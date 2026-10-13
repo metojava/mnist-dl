@@ -17,6 +17,10 @@ import java.util.Random;
  *
  * The layer stores the input from the forward pass so that
  * it can be used during backpropagation.
+ *
+ * All intermediate tensors are kept in reusable buffers that are
+ * only reallocated when the batch size changes, so no per-batch
+ * garbage is produced.
  */
 public class DenseLayer implements Layer {
 
@@ -47,6 +51,23 @@ public class DenseLayer implements Layer {
      * Input saved during forward().
      */
     private Tensor lastInput;
+
+    /*
+     * Cached transpose of the weights:
+     *
+     * outputSize x inputSize
+     *
+     * Rebuilt lazily and invalidated whenever update() changes
+     * the weights, so it is computed once per batch instead of
+     * materializing W^T on every backward call.
+     */
+    private Tensor weightsTransposed;
+
+    /*
+     * Reusable output / gradient buffers.
+     */
+    private Tensor outputBuffer;
+    private Tensor inputGradientBuffer;
 
     private static final Random RANDOM =
             new Random();
@@ -102,7 +123,7 @@ public class DenseLayer implements Layer {
                         outputSize
                 );
 
-        double[] weightData =
+        float[] weightData =
                 weights.data();
 
         for (int i = 0;
@@ -110,14 +131,14 @@ public class DenseLayer implements Layer {
              i++) {
 
             weightData[i] =
-                    RANDOM.nextGaussian()
-                            * std;
+                    (float) (RANDOM.nextGaussian()
+                            * std);
         }
 
         /*
          * Bias starts at zero.
          */
-        bias.fill(0.0);
+        bias.fill(0.0f);
     }
 
     // ============================================================
@@ -162,16 +183,23 @@ public class DenseLayer implements Layer {
                 input;
 
         /*
-         * Matrix multiplication.
-         *
-         * This uses the optimized flat-array implementation
-         * in Tensor.matmul().
+         * Matrix multiplication into a reused buffer.
          */
         Tensor output =
-                Tensor.matmul(
-                        input,
-                        weights
+                ensure(
+                        outputBuffer,
+                        input.rows(),
+                        outputSize
                 );
+
+        outputBuffer =
+                output;
+
+        Tensor.matmul(
+                input,
+                weights,
+                output
+        );
 
         /*
          * Add bias to every row.
@@ -179,10 +207,10 @@ public class DenseLayer implements Layer {
          * Doing this directly on the flat array is much faster
          * than repeatedly creating temporary tensors.
          */
-        double[] outputData =
+        float[] outputData =
                 output.data();
 
-        double[] biasData =
+        float[] biasData =
                 bias.data();
 
         int batchSize =
@@ -269,12 +297,22 @@ public class DenseLayer implements Layer {
          *
          * dW:
          *     inputSize × outputSize
+         *
+         * The transposed variant reads X with A^T semantics
+         * directly, without materializing a copy of X^T.
          */
         weightsGradient =
-                Tensor.matmul(
-                        lastInput.transpose(),
-                        gradient
+                ensure(
+                        weightsGradient,
+                        inputSize,
+                        outputSize
                 );
+
+        Tensor.matmulTransposedA(
+                lastInput,
+                gradient,
+                weightsGradient
+        );
 
         /*
          * --------------------------------------------------------
@@ -284,16 +322,22 @@ public class DenseLayer implements Layer {
          * db = sum(dZ) over batch dimension
          */
         biasGradient =
-                new Tensor(
+                ensure(
+                        biasGradient,
                         1,
                         outputSize
                 );
 
-        double[] gradientData =
+        float[] gradientData =
                 gradient.data();
 
-        double[] biasGradientData =
+        float[] biasGradientData =
                 biasGradient.data();
+
+        java.util.Arrays.fill(
+                biasGradientData,
+                0.0f
+        );
 
         int batchSize =
                 gradient.rows();
@@ -332,13 +376,20 @@ public class DenseLayer implements Layer {
          * dX:
          *     batchSize × inputSize
          */
-        Tensor inputGradient =
-                Tensor.matmul(
-                        gradient,
-                        weights.transpose()
+        inputGradientBuffer =
+                ensure(
+                        inputGradientBuffer,
+                        gradient.rows(),
+                        inputSize
                 );
 
-        return inputGradient;
+        Tensor.matmul(
+                gradient,
+                weightsTransposed(),
+                inputGradientBuffer
+        );
+
+        return inputGradientBuffer;
     }
 
     // ============================================================
@@ -361,17 +412,20 @@ public class DenseLayer implements Layer {
             );
         }
 
-        double[] weightData =
+        float[] weightData =
                 weights.data();
 
-        double[] weightGradientData =
+        float[] weightGradientData =
                 weightsGradient.data();
 
-        double[] biasData =
+        float[] biasData =
                 bias.data();
 
-        double[] biasGradientData =
+        float[] biasGradientData =
                 biasGradient.data();
+
+        float learningRateFloat =
+                (float) learningRate;
 
         /*
          * Weight update:
@@ -383,7 +437,7 @@ public class DenseLayer implements Layer {
              i++) {
 
             weightData[i] -=
-                    learningRate *
+                    learningRateFloat *
                     weightGradientData[i];
         }
 
@@ -397,9 +451,53 @@ public class DenseLayer implements Layer {
              i++) {
 
             biasData[i] -=
-                    learningRate *
+                    learningRateFloat *
                     biasGradientData[i];
         }
+
+        /*
+         * Weights changed, so the cached transpose is stale.
+         */
+        weightsTransposed =
+                null;
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+
+    /*
+     * Returns W^T, rebuilding it only when the weights have
+     * changed (i.e. since the last update()).
+     */
+    private Tensor weightsTransposed() {
+
+        if (weightsTransposed == null) {
+
+            weightsTransposed =
+                    weights.transpose();
+        }
+
+        return weightsTransposed;
+    }
+
+    private static Tensor ensure(
+            Tensor tensor,
+            int rows,
+            int cols
+    ) {
+
+        if (tensor == null ||
+            tensor.rows() != rows ||
+            tensor.cols() != cols) {
+
+            return new Tensor(
+                    rows,
+                    cols
+            );
+        }
+
+        return tensor;
     }
 
     // ============================================================

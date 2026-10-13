@@ -342,7 +342,7 @@ public class MNISTVisualizer {
          * ---------------------------------------------------------
          */
 
-        double[] imageData =
+        float[] imageData =
                 extractImage(
                         images,
                         imageIndex
@@ -377,7 +377,7 @@ public class MNISTVisualizer {
         Tensor probabilities =
                 network.forward(input);
 
-        double[] probabilitiesData =
+        float[] probabilitiesData =
                 probabilities.data();
 
         /*
@@ -391,7 +391,7 @@ public class MNISTVisualizer {
                         probabilitiesData
                 );
 
-        double confidence =
+        float confidence =
                 probabilitiesData[
                         predictedClass
                 ];
@@ -592,7 +592,7 @@ public class MNISTVisualizer {
      */
     private static void drawFashionImage(
             Graphics2D graphics,
-            double[] pixels,
+            float[] pixels,
             int x,
             int y,
             int size
@@ -616,7 +616,7 @@ public class MNISTVisualizer {
                 int index =
                         row * 28 + col;
 
-                double value =
+                float value =
                         pixels[index];
 
                 /*
@@ -625,23 +625,23 @@ public class MNISTVisualizer {
                  * 0.0 -> 0
                  * 1.0 -> 255
                  */
-                if (value >= 0.0 &&
-                    value <= 1.0) {
+                if (value >= 0.0f &&
+                    value <= 1.0f) {
 
-                    value *= 255.0;
+                    value *= 255.0f;
                 }
 
                 value =
                         Math.max(
-                                0.0,
+                                0.0f,
                                 Math.min(
-                                        255.0,
+                                        255.0f,
                                         value
                                 )
                         );
 
                 int gray =
-                        (int) Math.round(value);
+                        Math.round(value);
 
                 int rgb =
                         (gray << 16)
@@ -712,36 +712,29 @@ public class MNISTVisualizer {
     /**
      * Extract one 784-value image from the image tensor.
      */
-    private static double[] extractImage(
+    private static float[] extractImage(
             Tensor images,
             int imageIndex
     ) {
 
-        double[] source =
+        float[] source =
                 images.data();
-
-        double[] image =
-                new double[784];
 
         int offset =
                 imageIndex * 784;
 
-        System.arraycopy(
+        return java.util.Arrays.copyOfRange(
                 source,
                 offset,
-                image,
-                0,
-                784
+                offset + 784
         );
-
-        return image;
     }
 
     /**
      * Return index of largest value.
      */
     private static int argmax(
-            double[] values
+            float[] values
     ) {
 
         if (values == null ||
@@ -755,7 +748,7 @@ public class MNISTVisualizer {
         int bestIndex =
                 0;
 
-        double bestValue =
+        float bestValue =
                 values[0];
 
         for (int i = 1;

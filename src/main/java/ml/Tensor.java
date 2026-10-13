@@ -2,23 +2,24 @@ package ml;
 
 import java.util.Arrays;
 import java.util.Random;
+import java.util.function.DoubleUnaryOperator;
 
 /**
- * A simple 2D tensor backed by a contiguous double[] array.
+ * A simple 2D tensor backed by a contiguous float[] array.
  *
  * Data is stored in row-major order:
  *
  *     index = row * cols + column
  *
- * This representation is considerably faster than double[][] for
- * neural-network matrix operations because the data is contiguous
- * in memory and has less object overhead.
+ * float is used instead of double because it halves memory traffic
+ * and doubles the SIMD lanes per operation, which is the main win
+ * for the dense matrix multiplications in this library.
  */
 public class Tensor {
 
     private final int rows;
     private final int cols;
-    private final double[] data;
+    private final float[] data;
 
     private static final Random RANDOM =
             new Random();
@@ -45,7 +46,7 @@ public class Tensor {
         this.cols = cols;
 
         this.data =
-                new double[rows * cols];
+                new float[rows * cols];
     }
 
     /**
@@ -56,7 +57,7 @@ public class Tensor {
     public Tensor(
             int rows,
             int cols,
-            double[] data
+            float[] data
     ) {
 
         if (rows < 0 || cols < 0) {
@@ -94,7 +95,7 @@ public class Tensor {
      * Creates a tensor from a 2D array.
      */
     public Tensor(
-            double[][] source
+            float[][] source
     ) {
 
         if (source == null) {
@@ -112,7 +113,7 @@ public class Tensor {
                         : source[0].length;
 
         this.data =
-                new double[rows * cols];
+                new float[rows * cols];
 
         for (int i = 0;
              i < rows;
@@ -156,7 +157,7 @@ public class Tensor {
      * This is intentionally not copied because neural-network
      * operations need fast access to the underlying data.
      */
-    public double[] data() {
+    public float[] data() {
         return data;
     }
 
@@ -167,7 +168,7 @@ public class Tensor {
     /**
      * Gets one element.
      */
-    public double get(
+    public float get(
             int row,
             int col
     ) {
@@ -183,7 +184,7 @@ public class Tensor {
     public void set(
             int row,
             int col,
-            double value
+            float value
     ) {
 
         data[
@@ -194,7 +195,7 @@ public class Tensor {
     /**
      * Gets an element using the flat index.
      */
-    public double get(
+    public float get(
             int index
     ) {
 
@@ -206,7 +207,7 @@ public class Tensor {
      */
     public void set(
             int index,
-            double value
+            float value
     ) {
 
         data[index] = value;
@@ -240,7 +241,7 @@ public class Tensor {
 
         Arrays.fill(
                 result.data,
-                1.0
+                1.0f
         );
 
         return result;
@@ -265,7 +266,7 @@ public class Tensor {
              i++) {
 
             result.data[i] =
-                    RANDOM.nextDouble();
+                    RANDOM.nextFloat();
         }
 
         return result;
@@ -290,7 +291,7 @@ public class Tensor {
              i++) {
 
             result.data[i] =
-                    RANDOM.nextGaussian();
+                    (float) RANDOM.nextGaussian();
         }
 
         return result;
@@ -321,8 +322,8 @@ public class Tensor {
              i++) {
 
             result.data[i] =
-                    RANDOM.nextGaussian()
-                            * std;
+                    (float) (RANDOM.nextGaussian()
+                            * std);
         }
 
         return result;
@@ -354,8 +355,8 @@ public class Tensor {
              i++) {
 
             result.data[i] =
-                    RANDOM.nextGaussian()
-                            * std;
+                    (float) (RANDOM.nextGaussian()
+                            * std);
         }
 
         return result;
@@ -409,70 +410,539 @@ public class Tensor {
             );
         }
 
-        int m = a.rows;
-        int n = a.cols;
-        int p = b.cols;
-
         Tensor result =
                 new Tensor(
-                        m,
-                        p
+                        a.rows,
+                        b.cols
                 );
 
-        double[] ad =
-                a.data;
+        if (result.data.length == 0) {
+            return result;
+        }
 
-        double[] bd =
-                b.data;
+        matmulInto(
+                a.data,
+                b.data,
+                result.data,
+                a.rows,
+                a.cols,
+                b.cols
+        );
 
-        double[] rd =
-                result.data;
+        return result;
+    }
+
+    /**
+     * Matrix multiplication that writes into a caller-provided
+     * destination tensor, avoiding an allocation per call.
+     *
+     * The destination must already have the shape
+     * (a.rows x b.cols); its contents are overwritten.
+     */
+    public static Tensor matmul(
+            Tensor a,
+            Tensor b,
+            Tensor result
+    ) {
+
+        if (a.cols != b.rows) {
+            throw new IllegalArgumentException(
+                    "Matrix dimensions do not match: " +
+                    a.rows + "x" + a.cols +
+                    " cannot be multiplied by " +
+                    b.rows + "x" + b.cols
+            );
+        }
+
+        if (result.rows != a.rows ||
+            result.cols != b.cols) {
+
+            throw new IllegalArgumentException(
+                    "Destination shape mismatch: expected " +
+                    a.rows + "x" + b.cols +
+                    " but got " +
+                    result.rows + "x" + result.cols
+            );
+        }
+
+        if (result.data.length == 0) {
+            return result;
+        }
+
+        Arrays.fill(
+                result.data,
+                0.0f
+        );
+
+        matmulInto(
+                a.data,
+                b.data,
+                result.data,
+                a.rows,
+                a.cols,
+                b.cols
+        );
+
+        return result;
+    }
+
+    /*
+     * Cache-blocked GEMM kernel.
+     *
+     * B is split into (j, k) tiles that stay in L1/L2 while the
+     * whole batch sweeps over them, and each partial inner product
+     * is accumulated in registers before being written to the
+     * result once. This avoids re-reading B from main memory for
+     * every row and lets the JIT vectorize the inner loop.
+     */
+    private static void matmulInto(
+            float[] ad,
+            float[] bd,
+            float[] rd,
+            int m,
+            int n,
+            int p
+    ) {
+
+        final int JC = 32;
+        final int KC = 128;
 
         /*
-         * Cache-friendly matrix multiplication.
-         *
-         * Instead of:
-         *
-         *   i -> j -> k
-         *
-         * we use:
-         *
-         *   i -> k -> j
-         *
-         * so B is accessed sequentially.
+         * Large kernels split the result rows across the thread
+         * pool. Each thread owns its rows for every (jj, kk) tile,
+         * so no two threads ever touch the same output element and
+         * the per-element accumulation order is unchanged.
          */
-        for (int i = 0;
-             i < m;
-             i++) {
+        boolean parallel =
+                m >= 64 &&
+                (long) m * n * p >= 4_000_000L;
 
-            int aRow =
-                    i * n;
+        if (parallel) {
 
-            int resultRow =
-                    i * p;
+            Parallel.parallelRows(
+                    m,
+                    (r0, r1) -> {
 
-            for (int k = 0;
-                 k < n;
-                 k++) {
+                        for (int jj = 0;
+                             jj < p;
+                             jj += JC) {
 
-                double aValue =
-                        ad[aRow + k];
+                            int jEnd =
+                                    jj + JC < p
+                                            ? jj + JC
+                                            : p;
 
-                int bRow =
-                        k * p;
+                            int jLength =
+                                    jEnd - jj;
 
-                for (int j = 0;
-                     j < p;
-                     j++) {
+                            for (int kk = 0;
+                                 kk < n;
+                                 kk += KC) {
 
-                    rd[resultRow + j] +=
-                            aValue *
-                            bd[bRow + j];
+                                int kEnd =
+                                        kk + KC < n
+                                                ? kk + KC
+                                                : n;
+
+                                for (int i = r0;
+                                     i < r1;
+                                     i++) {
+
+                                    int aRow =
+                                            i * n;
+
+                                    int resultRow =
+                                            i * p + jj;
+
+                                    int j = 0;
+
+                                    /*
+                                     * Accumulate 4 result columns
+                                     * in registers so the inner
+                                     * loop reads B sequentially
+                                     * and touches the result array
+                                     * only once.
+                                     */
+                                    for (;
+                                         j + 4 <= jLength;
+                                         j += 4) {
+
+                                        float c0 = 0.0f;
+                                        float c1 = 0.0f;
+                                        float c2 = 0.0f;
+                                        float c3 = 0.0f;
+
+                                        for (int k = kk;
+                                             k < kEnd;
+                                             k++) {
+
+                                            float aValue =
+                                                    ad[aRow + k];
+
+                                            int bRow =
+                                                    k * p + jj + j;
+
+                                            c0 += aValue * bd[bRow];
+                                            c1 += aValue * bd[bRow + 1];
+                                            c2 += aValue * bd[bRow + 2];
+                                            c3 += aValue * bd[bRow + 3];
+                                        }
+
+                                        rd[resultRow + j] += c0;
+                                        rd[resultRow + j + 1] += c1;
+                                        rd[resultRow + j + 2] += c2;
+                                        rd[resultRow + j + 3] += c3;
+                                    }
+
+                                    for (;
+                                         j < jLength;
+                                         j++) {
+
+                                        float c = 0.0f;
+
+                                        int column =
+                                                jj + j;
+
+                                        for (int k = kk;
+                                             k < kEnd;
+                                             k++) {
+
+                                            c +=
+                                                    ad[aRow + k]
+                                                    * bd[k * p + column];
+                                        }
+
+                                        rd[resultRow + j] += c;
+                                    }
+                                }
+                            }
+                        }
+                    }
+            );
+
+            return;
+        }
+
+        for (int jj = 0;
+             jj < p;
+             jj += JC) {
+
+            int jEnd =
+                    jj + JC < p
+                            ? jj + JC
+                            : p;
+
+            int jLength =
+                    jEnd - jj;
+
+            for (int kk = 0;
+                 kk < n;
+                 kk += KC) {
+
+                int kEnd =
+                        kk + KC < n
+                                ? kk + KC
+                                : n;
+
+                for (int i = 0;
+                     i < m;
+                     i++) {
+
+                    int aRow =
+                            i * n;
+
+                    int resultRow =
+                            i * p + jj;
+
+                    int j = 0;
+
+                    /*
+                     * Accumulate 4 result columns in registers
+                     * so the inner loop reads B sequentially and
+                     * touches the result array only once.
+                     */
+                    for (;
+                         j + 4 <= jLength;
+                         j += 4) {
+
+                        float c0 = 0.0f;
+                        float c1 = 0.0f;
+                        float c2 = 0.0f;
+                        float c3 = 0.0f;
+
+                        for (int k = kk;
+                             k < kEnd;
+                             k++) {
+
+                            float aValue =
+                                    ad[aRow + k];
+
+                            int bRow =
+                                    k * p + jj + j;
+
+                            c0 += aValue * bd[bRow];
+                            c1 += aValue * bd[bRow + 1];
+                            c2 += aValue * bd[bRow + 2];
+                            c3 += aValue * bd[bRow + 3];
+                        }
+
+                        rd[resultRow + j] += c0;
+                        rd[resultRow + j + 1] += c1;
+                        rd[resultRow + j + 2] += c2;
+                        rd[resultRow + j + 3] += c3;
+                    }
+
+                    for (;
+                         j < jLength;
+                         j++) {
+
+                        float c = 0.0f;
+
+                        int column =
+                                jj + j;
+
+                        for (int k = kk;
+                             k < kEnd;
+                             k++) {
+
+                            c +=
+                                    ad[aRow + k]
+                                    * bd[k * p + column];
+                        }
+
+                        rd[resultRow + j] += c;
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * Matrix multiplication with the left operand transposed:
+     *
+     *     A^T × B
+     *
+     * If A is:
+     *
+     *     m × n
+     *
+     * and B is:
+     *
+     *     m × p
+     *
+     * the result is:
+     *
+     *     n × p
+     *
+     * Used to compute dW = X^T × dZ during backpropagation without
+     * materializing a copy of X^T. The batch dimension is traversed
+     * in tiles so the partial results stay in cache.
+     */
+    public static Tensor matmulTransposedA(
+            Tensor a,
+            Tensor b
+    ) {
+
+        if (a.rows != b.rows) {
+            throw new IllegalArgumentException(
+                    "Matrix dimensions do not match: " +
+                    a.rows + "x" + a.cols +
+                    " cannot be multiplied by " +
+                    b.rows + "x" + b.cols +
+                    " with A transposed"
+            );
+        }
+
+        Tensor result =
+                new Tensor(
+                        a.cols,
+                        b.cols
+                );
+
+        if (result.data.length == 0) {
+            return result;
+        }
+
+        matmulTransposedAInto(
+                a.data,
+                b.data,
+                result.data,
+                a.rows,
+                a.cols,
+                b.cols
+        );
 
         return result;
+    }
+
+    /**
+     * A^T × B that writes into a caller-provided destination,
+     * avoiding an allocation per call.
+     *
+     * The destination must already have the shape
+     * (a.cols x b.cols); its contents are overwritten.
+     */
+    public static Tensor matmulTransposedA(
+            Tensor a,
+            Tensor b,
+            Tensor result
+    ) {
+
+        if (a.rows != b.rows) {
+            throw new IllegalArgumentException(
+                    "Matrix dimensions do not match: " +
+                    a.rows + "x" + a.cols +
+                    " cannot be multiplied by " +
+                    b.rows + "x" + b.cols +
+                    " with A transposed"
+            );
+        }
+
+        if (result.rows != a.cols ||
+            result.cols != b.cols) {
+
+            throw new IllegalArgumentException(
+                    "Destination shape mismatch: expected " +
+                    a.cols + "x" + b.cols +
+                    " but got " +
+                    result.rows + "x" + result.cols
+            );
+        }
+
+        if (result.data.length == 0) {
+            return result;
+        }
+
+        Arrays.fill(
+                result.data,
+                0.0f
+        );
+
+        matmulTransposedAInto(
+                a.data,
+                b.data,
+                result.data,
+                a.rows,
+                a.cols,
+                b.cols
+        );
+
+        return result;
+    }
+
+    /*
+     * Kernel for A^T × B.
+     *
+     * A is read column-wise (m x n stored row-major), so the batch
+     * dimension is traversed in tiles of KB to keep A's column
+     * slices and the partial results resident in cache.
+     */
+    private static void matmulTransposedAInto(
+            float[] ad,
+            float[] bd,
+            float[] rd,
+            int m,
+            int n,
+            int p
+    ) {
+
+        final int KB = 128;
+
+        /*
+         * The result is n x p, so rows are split across the thread
+         * pool over the output rows. Each thread accumulates its
+         * rows over every batch tile with no shared output element.
+         */
+        boolean parallel =
+                n >= 64 &&
+                (long) m * n * p >= 4_000_000L;
+
+        if (parallel) {
+
+            Parallel.parallelRows(
+                    n,
+                    (r0, r1) -> {
+
+                        for (int ib = 0;
+                             ib < m;
+                             ib += KB) {
+
+                            int iEnd =
+                                    ib + KB < m
+                                            ? ib + KB
+                                            : m;
+
+                            for (int i = r0;
+                                 i < r1;
+                                 i++) {
+
+                                int resultRow =
+                                        i * p;
+
+                                for (int k = ib;
+                                     k < iEnd;
+                                     k++) {
+
+                                    float aValue =
+                                            ad[k * n + i];
+
+                                    int bRow =
+                                            k * p;
+
+                                    for (int j = 0;
+                                         j < p;
+                                         j++) {
+
+                                        rd[resultRow + j] +=
+                                                aValue *
+                                                bd[bRow + j];
+                                    }
+                                }
+                            }
+                        }
+                    }
+            );
+
+            return;
+        }
+
+        for (int ib = 0;
+             ib < m;
+             ib += KB) {
+
+            int iEnd =
+                    ib + KB < m
+                            ? ib + KB
+                            : m;
+
+            for (int i = 0;
+                 i < n;
+                 i++) {
+
+                int resultRow =
+                        i * p;
+
+                for (int k = ib;
+                     k < iEnd;
+                     k++) {
+
+                    float aValue =
+                            ad[k * n + i];
+
+                    int bRow =
+                            k * p;
+
+                    for (int j = 0;
+                         j < p;
+                         j++) {
+
+                        rd[resultRow + j] +=
+                                aValue *
+                                bd[bRow + j];
+                    }
+                }
+            }
+        }
     }
 
     // ============================================================
@@ -621,7 +1091,7 @@ public class Tensor {
              i++) {
 
             result.data[i] =
-                    data[i] * scalar;
+                    data[i] * (float) scalar;
         }
 
         return result;
@@ -638,7 +1108,7 @@ public class Tensor {
              i < data.length;
              i++) {
 
-            data[i] *= scalar;
+            data[i] *= (float) scalar;
         }
     }
 
@@ -702,11 +1172,11 @@ public class Tensor {
     // Sum
     // ============================================================
 
-    public double sum() {
+    public float sum() {
 
-        double total = 0.0;
+        float total = 0.0f;
 
-        for (double value : data) {
+        for (float value : data) {
             total += value;
         }
 
@@ -717,10 +1187,10 @@ public class Tensor {
     // Mean
     // ============================================================
 
-    public double mean() {
+    public float mean() {
 
         if (data.length == 0) {
-            return 0.0;
+            return 0.0f;
         }
 
         return sum() / data.length;
@@ -730,7 +1200,7 @@ public class Tensor {
     // Maximum
     // ============================================================
 
-    public double max() {
+    public float max() {
 
         if (data.length == 0) {
             throw new IllegalStateException(
@@ -738,7 +1208,7 @@ public class Tensor {
             );
         }
 
-        double maximum =
+        float maximum =
                 data[0];
 
         for (int i = 1;
@@ -758,7 +1228,7 @@ public class Tensor {
     // Minimum
     // ============================================================
 
-    public double min() {
+    public float min() {
 
         if (data.length == 0) {
             throw new IllegalStateException(
@@ -766,7 +1236,7 @@ public class Tensor {
             );
         }
 
-        double minimum =
+        float minimum =
                 data[0];
 
         for (int i = 1;
@@ -806,14 +1276,14 @@ public class Tensor {
         int bestIndex =
                 0;
 
-        double bestValue =
+        float bestValue =
                 data[offset];
 
         for (int j = 1;
              j < cols;
              j++) {
 
-            double value =
+            float value =
                     data[offset + j];
 
             if (value > bestValue) {
@@ -836,7 +1306,7 @@ public class Tensor {
     /**
      * Returns a copy of one row.
      */
-    public double[] row(
+    public float[] row(
             int row
     ) {
 
@@ -846,8 +1316,8 @@ public class Tensor {
             );
         }
 
-        double[] result =
-                new double[cols];
+        float[] result =
+                new float[cols];
 
         System.arraycopy(
                 data,
@@ -866,7 +1336,7 @@ public class Tensor {
 
     public void setRow(
             int row,
-            double[] values
+            float[] values
     ) {
 
         if (row < 0 || row >= rows) {
@@ -936,7 +1406,7 @@ public class Tensor {
     // ============================================================
 
     public Tensor apply(
-            java.util.function.DoubleUnaryOperator function
+            DoubleUnaryOperator function
     ) {
 
         Tensor result =
@@ -950,8 +1420,8 @@ public class Tensor {
              i++) {
 
             result.data[i] =
-                    function.applyAsDouble(
-                            data[i]
+                    (float) function.applyAsDouble(
+                            (double) data[i]
                     );
         }
 
@@ -962,7 +1432,7 @@ public class Tensor {
      * In-place function application.
      */
     public void applyInPlace(
-            java.util.function.DoubleUnaryOperator function
+            DoubleUnaryOperator function
     ) {
 
         for (int i = 0;
@@ -970,8 +1440,8 @@ public class Tensor {
              i++) {
 
             data[i] =
-                    function.applyAsDouble(
-                            data[i]
+                    (float) function.applyAsDouble(
+                            (double) data[i]
                     );
         }
     }
@@ -981,7 +1451,7 @@ public class Tensor {
     // ============================================================
 
     public void fill(
-            double value
+            float value
     ) {
 
         Arrays.fill(
@@ -1025,10 +1495,10 @@ public class Tensor {
      *
      * Useful for visualization/debugging.
      */
-    public double[][] toArray() {
+    public float[][] toArray() {
 
-        double[][] result =
-                new double[rows][cols];
+        float[][] result =
+                new float[rows][cols];
 
         for (int i = 0;
              i < rows;
@@ -1075,7 +1545,7 @@ public class Tensor {
                 sb.append(
                         String.format(
                                 "%.4f",
-                                data[i * cols + j]
+                                (double) data[i * cols + j]
                         )
                 );
 

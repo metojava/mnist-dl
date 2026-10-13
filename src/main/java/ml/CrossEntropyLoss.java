@@ -1,8 +1,23 @@
 package ml;
 
+/**
+ * Categorical cross-entropy loss:
+ *
+ *     L = -(1 / N) * sum(log(p[label]))
+ *
+ * The backward pass returns the fused Softmax + CrossEntropy
+ * gradient:
+ *
+ *     dL/dz = p - oneHot(label)
+ *
+ * divided by the batch size. The gradient buffer is reused across
+ * calls to avoid per-batch allocations.
+ */
 public class CrossEntropyLoss implements Loss {
 
     private static final double EPSILON = 1e-12;
+
+    private Tensor gradientBuffer;
 
     @Override
     public double forward(
@@ -16,13 +31,21 @@ public class CrossEntropyLoss implements Loss {
             );
         }
 
+        float[] predictionData =
+                predictions.data();
+
+        int cols =
+                predictions.cols();
+
         double totalLoss = 0.0;
 
-        for (int i = 0; i < predictions.rows(); i++) {
+        for (int i = 0;
+             i < predictions.rows();
+             i++) {
 
             int label = labels[i];
 
-            if (label < 0 || label >= predictions.cols()) {
+            if (label < 0 || label >= cols) {
                 throw new IllegalArgumentException(
                         "Invalid label: " + label
                 );
@@ -30,7 +53,7 @@ public class CrossEntropyLoss implements Loss {
 
             double probability =
                     Math.max(
-                            predictions.get(i, label),
+                            (double) predictionData[i * cols + label],
                             EPSILON
                     );
 
@@ -46,40 +69,76 @@ public class CrossEntropyLoss implements Loss {
             int[] labels
     ) {
 
+        int rows =
+                predictions.rows();
+
+        int cols =
+                predictions.cols();
+
         Tensor gradient =
-                new Tensor(
-                        predictions.rows(),
-                        predictions.cols()
+                ensure(
+                        gradientBuffer,
+                        rows,
+                        cols
                 );
 
-        double batchSize = predictions.rows();
+        gradientBuffer =
+                gradient;
 
-        /*
-         * Gradient of softmax + cross entropy:
-         *
-         * prediction - oneHot(label)
-         *
-         * divided by batch size.
-         */
-        for (int i = 0; i < predictions.rows(); i++) {
+        float[] gradientData =
+                gradient.data();
 
-            for (int j = 0; j < predictions.cols(); j++) {
+        float[] predictionData =
+                predictions.data();
 
-                double value =
-                        predictions.get(i, j);
+        float scale =
+                1.0f / rows;
 
-                if (j == labels[i]) {
-                    value -= 1.0;
+        for (int i = 0;
+             i < rows;
+             i++) {
+
+            int label =
+                    labels[i];
+
+            int offset =
+                    i * cols;
+
+            for (int j = 0;
+                 j < cols;
+                 j++) {
+
+                float value =
+                        predictionData[offset + j];
+
+                if (j == label) {
+                    value -= 1.0f;
                 }
 
-                gradient.set(
-                        i,
-                        j,
-                        value / batchSize
-                );
+                gradientData[offset + j] =
+                        value * scale;
             }
         }
 
         return gradient;
+    }
+
+    private static Tensor ensure(
+            Tensor tensor,
+            int rows,
+            int cols
+    ) {
+
+        if (tensor == null ||
+            tensor.rows() != rows ||
+            tensor.cols() != cols) {
+
+            return new Tensor(
+                    rows,
+                    cols
+            );
+        }
+
+        return tensor;
     }
 }

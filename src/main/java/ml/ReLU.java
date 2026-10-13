@@ -1,8 +1,25 @@
 package ml;
 
+/**
+ * ReLU activation.
+ *
+ * Forward:
+ *
+ *     y = max(0, x)
+ *
+ * Backward:
+ *
+ *     dL/dx = dL/dy   if x > 0
+ *             0       otherwise
+ *
+ * The output buffer is reused across calls to avoid per-batch
+ * allocations.
+ */
 public class ReLU implements Activation {
 
     private Tensor input;
+    private Tensor outputBuffer;
+    private Tensor gradientBuffer;
 
     @Override
     public Tensor forward(Tensor input) {
@@ -10,17 +27,32 @@ public class ReLU implements Activation {
         this.input = input;
 
         Tensor output =
-                new Tensor(input.rows(), input.cols());
-
-        for (int i = 0; i < input.rows(); i++) {
-            for (int j = 0; j < input.cols(); j++) {
-
-                output.set(
-                        i,
-                        j,
-                        Math.max(0.0, input.get(i, j))
+                ensure(
+                        outputBuffer,
+                        input.rows(),
+                        input.cols()
                 );
-            }
+
+        outputBuffer =
+                output;
+
+        float[] inputData =
+                input.data();
+
+        float[] outputData =
+                output.data();
+
+        for (int i = 0;
+             i < outputData.length;
+             i++) {
+
+            float value =
+                    inputData[i];
+
+            outputData[i] =
+                    value > 0.0f
+                            ? value
+                            : 0.0f;
         }
 
         return output;
@@ -30,23 +62,32 @@ public class ReLU implements Activation {
     public Tensor backward(Tensor gradient) {
 
         Tensor result =
-                new Tensor(
+                ensure(
+                        gradientBuffer,
                         gradient.rows(),
                         gradient.cols()
                 );
 
-        for (int i = 0; i < gradient.rows(); i++) {
-            for (int j = 0; j < gradient.cols(); j++) {
+        gradientBuffer =
+                result;
 
-                double derivative =
-                        input.get(i, j) > 0 ? 1.0 : 0.0;
+        float[] inputData =
+                input.data();
 
-                result.set(
-                        i,
-                        j,
-                        gradient.get(i, j) * derivative
-                );
-            }
+        float[] gradientData =
+                gradient.data();
+
+        float[] resultData =
+                result.data();
+
+        for (int i = 0;
+             i < resultData.length;
+             i++) {
+
+            resultData[i] =
+                    inputData[i] > 0.0f
+                            ? gradientData[i]
+                            : 0.0f;
         }
 
         return result;
@@ -65,5 +106,24 @@ public class ReLU implements Activation {
     @Override
     public int outputSize() {
         return -1;
+    }
+
+    private static Tensor ensure(
+            Tensor tensor,
+            int rows,
+            int cols
+    ) {
+
+        if (tensor == null ||
+            tensor.rows() != rows ||
+            tensor.cols() != cols) {
+
+            return new Tensor(
+                    rows,
+                    cols
+            );
+        }
+
+        return tensor;
     }
 }

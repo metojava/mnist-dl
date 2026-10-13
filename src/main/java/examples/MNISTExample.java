@@ -74,7 +74,11 @@ public class MNISTExample {
          */
         int epochs = 10;
 
-        int batchSize = 128;
+        if (args.length > 0) {
+            epochs = Integer.parseInt(args[0]);
+        }
+
+        int batchSize = 512;
 
         double learningRate = 0.01;
 
