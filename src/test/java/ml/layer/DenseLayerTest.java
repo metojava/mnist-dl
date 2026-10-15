@@ -39,7 +39,7 @@ class DenseLayerTest {
     @Test
     void testUpdateModifiesWeights() {
         DenseLayer layer = new DenseLayer(4, 3);
-        double[] origWeights = layer.weights().data().clone();
+        float[] origWeights = layer.weights().data().clone();
         Tensor input = Tensor.filled(1, 4, 1.0);
         layer.forward(input);
         Tensor grad = Tensor.ones(1, 3);

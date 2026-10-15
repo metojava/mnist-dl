@@ -42,9 +42,9 @@ public class HuberLoss implements Loss {
                 double target = (j == labels[i]) ? 1.0 : 0.0;
                 double diff = predictions.get(i, j) - target;
                 if (Math.abs(diff) <= delta) {
-                    grad.data()[i * classes + j] = diff / batchSize;
+                    grad.data()[i * classes + j] = (float) (diff / batchSize);
                 } else {
-                    grad.data()[i * classes + j] = delta * Math.signum(diff) / batchSize;
+                    grad.data()[i * classes + j] = (float) (delta * Math.signum(diff) / batchSize);
                 }
             }
         }

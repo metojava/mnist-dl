@@ -23,7 +23,7 @@ class TensorTest {
     @Test
     void testFilled() {
         Tensor t = Tensor.filled(5, 5, 3.14);
-        for (double v : t.data()) assertEquals(3.14, v, 1e-10);
+        for (double v : t.data()) assertEquals(3.14, v, 1e-6);
     }
 
     @Test
@@ -190,7 +190,7 @@ class TensorTest {
     void testReadWriteLock() {
         Tensor t = Tensor.zeros(10, 10);
         t.writeLock();
-        try { t.data()[0] = 42.0; }
+        try { t.data()[0] = 42.0f; }
         finally { t.writeUnlock(); }
         t.readLock();
         try { assertEquals(42.0, t.data()[0]); }

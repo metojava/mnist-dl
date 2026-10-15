@@ -96,7 +96,7 @@ public class LSTMLayer implements Layer {
         double std = Math.sqrt(2.0 / (rows + cols));
         Tensor t = new Tensor(rows, cols);
         synchronized (INIT_RNG) {
-            for (int i = 0; i < t.size(); i++) t.data()[i] = INIT_RNG.nextGaussian() * std;
+            for (int i = 0; i < t.size(); i++) t.data()[i] = (float) (INIT_RNG.nextGaussian() * std);
         }
         return t;
     }
@@ -169,13 +169,13 @@ public class LSTMLayer implements Layer {
     }
 
     private static Tensor sigmoid(Tensor z, Tensor biasRow) {
-        double[] d = z.data();
-        double[] b = biasRow.data();
+        float[] d = z.data();
+        float[] b = biasRow.data();
         int H = biasRow.cols();
         for (int r = 0; r < z.rows(); r++)
             for (int j = 0; j < H; j++) {
                 int i = r * H + j;
-                d[i] = 1.0 / (1.0 + Math.exp(-(d[i] + b[j])));
+                d[i] = (float) (1.0 / (1.0 + Math.exp(-(d[i] + b[j]))));
             }
         return z;
     }
@@ -185,7 +185,8 @@ public class LSTMLayer implements Layer {
         int n = to - from;
         double[] data = new double[rows * n];
         for (int r = 0; r < rows; r++)
-            System.arraycopy(src.data(), r * src.cols() + from, data, r * n, n);
+            for (int c = 0; c < n; c++)
+                data[r * n + c] = src.data()[r * src.cols() + from + c];
         return Tensor.fromFlat(data, rows, n);
     }
 
@@ -236,9 +237,9 @@ public class LSTMLayer implements Layer {
             Tensor cPrevT = step > 0 ? (t > 0 ? ca.c[t - 1] : ca.c0) : (t < T - 1 ? ca.c[t + 1] : ca.c0);
 
             // 3. Gate pre-gradients
-            double[] cd = ca.c[t].data();
-            double[] od = ca.o[t].data(), fd = ca.f[t].data(), idd = ca.i[t].data(), gd = ca.g[t].data();
-            double[] cpd = cPrevT.data();
+            float[] cd = ca.c[t].data();
+            float[] od = ca.o[t].data(), fd = ca.f[t].data(), idd = ca.i[t].data(), gd = ca.g[t].data();
+            float[] cpd = cPrevT.data();
 
             double[] di = new double[batchSize * H], df2 = new double[batchSize * H];
             double[] do_ = new double[batchSize * H], dg = new double[batchSize * H];
@@ -285,7 +286,7 @@ public class LSTMLayer implements Layer {
 
     private static void accGate(double[] gW, Tensor x, double[] pd) {
         int X = x.cols(), H = pd.length / Math.max(1, x.rows());
-        double[] xd = x.data();
+        float[] xd = x.data();
         for (int b = 0; b < x.rows(); b++)
             for (int a = 0; a < X; a++) {
                 double xv = xd[b * X + a];
@@ -303,7 +304,7 @@ public class LSTMLayer implements Layer {
 
     private void propagate(Tensor wh, double[] pd, double[] dhNext) {
         int H = hiddenSize;
-        double[] wd = wh.data();
+        float[] wd = wh.data();
         for (int b = 0; b < pd.length / H; b++) {
             int pBase = b * H;
             for (int j = 0; j < H; j++) {
@@ -316,7 +317,7 @@ public class LSTMLayer implements Layer {
 
     private void addInputGrad(Tensor wx, double[] pd, Tensor dInput, int t) {
         int X = inputSize, H = hiddenSize;
-        double[] wd = wx.data();
+        float[] wd = wx.data();
         int colBase = t * X;
         for (int b = 0; b < pd.length / H; b++) {
             int pBase = b * H, dBase = b * dInput.cols() + colBase;
@@ -346,12 +347,12 @@ public class LSTMLayer implements Layer {
     }
 
     private static void sgd(Tensor w, double[] g, double lr) {
-        double[] wd = w.data();
+        float[] wd = w.data();
         for (int i = 0; i < wd.length; i++) { wd[i] -= lr * g[i]; g[i] = 0.0; }
     }
 
     private static void vecSgd(Tensor biasRow, double[] g, double lr) {
-        double[] bd = biasRow.data();
+        float[] bd = biasRow.data();
         for (int i = 0; i < bd.length; i++) { bd[i] -= lr * g[i]; g[i] = 0.0; }
     }
 

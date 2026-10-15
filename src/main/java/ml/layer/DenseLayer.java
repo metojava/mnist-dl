@@ -1,22 +1,23 @@
 package ml.layer;
 
 import ml.core.Tensor;
-import ml.core.ThreadPoolManager;
 import ml.exception.ShapeException;
-
-import java.util.concurrent.*;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class DenseLayer implements Layer {
     private final int inSize;
     private final int outSize;
     private final Tensor weights;
     private final Tensor bias;
-    private volatile Tensor weightsGrad;
-    private volatile Tensor biasGrad;
-    private volatile Tensor lastInput;
-    private final ReentrantLock gradLock = new ReentrantLock();
-    private static final int PARALLEL_THRESHOLD = 8192;
+
+    // Gradient / activation buffers are reused across batches so the hot
+    // training loop produces no per-batch garbage.
+    private Tensor weightsGrad;
+    private Tensor biasGrad;
+    private Tensor lastInput;
+    private Tensor outputBuffer;
+    private Tensor inputGradientBuffer;
+
+    // W^T (inSize x outSize) used by forward; rebuilt only when weights change.
     private Tensor cachedTranspose;
 
     public DenseLayer(int inputSize, int outputSize) {
@@ -41,10 +42,14 @@ public class DenseLayer implements Layer {
     }
 
     private Tensor getCachedTranspose() {
-        if (cachedTranspose == null) {
-            cachedTranspose = weights.transpose();
-        }
+        if (cachedTranspose == null) cachedTranspose = weights.transpose();
         return cachedTranspose;
+    }
+
+    private static Tensor ensure(Tensor tensor, int rows, int cols) {
+        if (tensor == null || tensor.rows() != rows || tensor.cols() != cols)
+            return new Tensor(rows, cols);
+        return tensor;
     }
 
     @Override
@@ -53,142 +58,53 @@ public class DenseLayer implements Layer {
             throw new ShapeException("DenseLayer forward: expected input cols=" + inSize + ", got " + input.cols());
         this.lastInput = input;
 
-        Tensor output = Tensor.matmul(input, getCachedTranspose());
+        outputBuffer = ensure(outputBuffer, input.rows(), outSize);
+        Tensor.matmul(input, getCachedTranspose(), outputBuffer);
 
-        // Parallel bias addition via CompletableFuture chunks
-        int total = output.rows() * outSize;
-        if (total <= PARALLEL_THRESHOLD) {
-            addBiasSequential(output.data(), bias.data(), outSize, output.rows());
-        } else {
-            ExecutorService pool = ThreadPoolManager.compute();
-            int threads = ThreadPoolManager.computePoolSize();
-            int chunk = Math.max(1, output.rows() / threads);
-            CompletableFuture<?>[] futures = new CompletableFuture[(output.rows() + chunk - 1) / chunk];
-            for (int t = 0; t < futures.length; t++) {
-                int from = t * chunk;
-                int to = Math.min(from + chunk, output.rows());
-                futures[t] = CompletableFuture.runAsync(
-                    () -> addBiasSequential(output.data(), bias.data(), outSize, from, to), pool);
-            }
-            CompletableFuture.allOf(futures).join();
+        float[] out = outputBuffer.data();
+        float[] b = bias.data();
+        int batchSize = input.rows();
+        for (int i = 0; i < batchSize; i++) {
+            int off = i * outSize;
+            for (int j = 0; j < outSize; j++) out[off + j] += b[j];
         }
-        return output;
-    }
-
-    private void addBiasSequential(double[] out, double[] b, int cols, int numRows) {
-        for (int i = 0; i < numRows; i++)
-            for (int j = 0; j < cols; j++)
-                out[i * cols + j] += b[j];
-    }
-
-    private void addBiasSequential(double[] out, double[] b, int cols, int rowFrom, int rowTo) {
-        for (int i = rowFrom; i < rowTo; i++)
-            for (int j = 0; j < cols; j++)
-                out[i * cols + j] += b[j];
+        return outputBuffer;
     }
 
     @Override
     public Tensor backward(Tensor gradient) {
         int batchSize = gradient.rows();
-        int totalWeightGrad = outSize * inSize;
 
-        Tensor wGrad;
-        Tensor bGrad;
+        // dW = X^T dZ  -> [outSize x inSize], same shape as weights.
+        weightsGrad = ensure(weightsGrad, outSize, inSize);
+        Tensor.matmulTransposedA(gradient, lastInput, weightsGrad);
 
-        if ((long) batchSize * inSize * outSize <= PARALLEL_THRESHOLD) {
-            wGrad = Tensor.matmul(gradient.transpose(), lastInput);
-            bGrad = gradient.sumCols();
-        } else {
-            ExecutorService pool = ThreadPoolManager.compute();
-            int threads = ThreadPoolManager.parallelism();
-            int chunk = Math.max(1, batchSize / threads);
-            int numTasks = (batchSize + chunk - 1) / chunk;
-
-            double[][] partialDW = new double[numTasks][totalWeightGrad];
-            double[][] partialDB = new double[numTasks][outSize];
-            CompletableFuture<?>[] futures = new CompletableFuture[numTasks];
-
-            for (int t = 0; t < numTasks; t++) {
-                int from = t * chunk;
-                int to = Math.min(from + chunk, batchSize);
-                final int taskIdx = t;
-                futures[t] = CompletableFuture.runAsync(() -> {
-                    double[] gradData = gradient.data();
-                    double[] inData = lastInput.data();
-                    double[] pdw = partialDW[taskIdx];
-                    double[] pdb = partialDB[taskIdx];
-                    for (int b = from; b < to; b++) {
-                        int gradOffset = b * outSize;
-                        int inOffset = b * inSize;
-                        for (int oi = 0; oi < outSize; oi++) {
-                            double gv = gradData[gradOffset + oi];
-                            pdb[oi] += gv;
-                            int pdwOffset = oi * inSize;
-                            for (int ii = 0; ii < inSize; ii++) {
-                                pdw[pdwOffset + ii] += gv * inData[inOffset + ii];
-                            }
-                        }
-                    }
-                }, pool);
-            }
-            CompletableFuture.allOf(futures).join();
-
-            wGrad = Tensor.zeros(outSize, inSize);
-            bGrad = Tensor.zeros(1, outSize);
-            double[] wd = wGrad.data();
-            double[] bd = bGrad.data();
-            for (int t = 0; t < numTasks; t++) {
-                for (int i = 0; i < totalWeightGrad; i++) wd[i] += partialDW[t][i];
-                for (int i = 0; i < outSize; i++) bd[i] += partialDB[t][i];
-            }
+        // db = sum(dZ) over the batch dimension -> [1 x outSize].
+        biasGrad = ensure(biasGrad, 1, outSize);
+        float[] bgd = biasGrad.data();
+        float[] gd = gradient.data();
+        java.util.Arrays.fill(bgd, 0.0f);
+        for (int i = 0; i < batchSize; i++) {
+            int off = i * outSize;
+            for (int j = 0; j < outSize; j++) bgd[j] += gd[off + j];
         }
 
-        gradLock.lock();
-        try {
-            this.weightsGrad = wGrad;
-            this.biasGrad = bGrad;
-        } finally {
-            gradLock.unlock();
-        }
-
-        // dX = dZ * W^T — parallel matmul
-        return Tensor.matmul(gradient, weights);
+        // dX = dZ W  -> [batchSize x inSize]; no transpose needed.
+        inputGradientBuffer = ensure(inputGradientBuffer, batchSize, inSize);
+        Tensor.matmul(gradient, weights, inputGradientBuffer);
+        return inputGradientBuffer;
     }
 
     @Override
     public void update(double learningRate) {
-        gradLock.lock();
-        try {
-            if (weightsGrad == null) return;
-            double[] wData = weights.data();
-            double[] gData = weightsGrad.data();
-            double[] bData = bias.data();
-            double[] bgData = biasGrad.data();
-            int wLen = wData.length;
-
-            // Parallel weight update via ExecutorService
-            if (wLen <= PARALLEL_THRESHOLD) {
-                for (int i = 0; i < wLen; i++) wData[i] -= learningRate * gData[i];
-                for (int i = 0; i < outSize; i++) bData[i] -= learningRate * bgData[i];
-            } else {
-                ExecutorService pool = ThreadPoolManager.compute();
-                int threads = ThreadPoolManager.parallelism();
-                int chunk = Math.max(1, wLen / threads);
-                CompletableFuture<?>[] futures = new CompletableFuture[(wLen + chunk - 1) / chunk];
-                for (int t = 0; t < futures.length; t++) {
-                    int from = t * chunk;
-                    int to = Math.min(from + chunk, wLen);
-                    futures[t] = CompletableFuture.runAsync(() -> {
-                        for (int i = from; i < to; i++) wData[i] -= learningRate * gData[i];
-                    }, pool);
-                }
-                CompletableFuture.allOf(futures).join();
-                for (int i = 0; i < outSize; i++) bData[i] -= learningRate * bgData[i];
-            }
-            invalidateTranspose();
-        } finally {
-            gradLock.unlock();
-        }
+        if (weightsGrad == null) return;
+        float[] wData = weights.data();
+        float[] gData = weightsGrad.data();
+        float[] bData = bias.data();
+        float[] bgData = biasGrad.data();
+        for (int i = 0; i < wData.length; i++) wData[i] -= learningRate * gData[i];
+        for (int i = 0; i < bData.length; i++) bData[i] -= learningRate * bgData[i];
+        invalidateTranspose();
     }
 
     @Override

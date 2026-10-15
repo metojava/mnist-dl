@@ -49,8 +49,8 @@ public class Adam implements Optimizer {
                 if (dense.weightsGradient() == null) { denseIdx++; continue; }
                 final int idxCapture = denseIdx++;
                 int wLen = dense.weights().size();
-                double[] wData = dense.weights().data();
-                double[] wgData = dense.weightsGradient().data();
+                float[] wData = dense.weights().data();
+                float[] wgData = dense.weightsGradient().data();
                 double[] mWData = mW.get(idxCapture);
                 double[] vWData = vW.get(idxCapture);
                 double invBc1 = 1.0 / bc1;
@@ -66,8 +66,8 @@ public class Adam implements Optimizer {
                 });
 
                 int bLen = dense.bias().size();
-                double[] bData = dense.bias().data();
-                double[] bgData = dense.biasGradient().data();
+                float[] bData = dense.bias().data();
+                float[] bgData = dense.biasGradient().data();
                 double[] mBData = mB.get(idxCapture);
                 double[] vBData = vB.get(idxCapture);
 

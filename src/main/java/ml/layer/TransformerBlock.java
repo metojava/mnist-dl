@@ -140,8 +140,8 @@ public class TransformerBlock implements Layer {
     }
 
     private Tensor residualAdd(Tensor a, Tensor b) {
-        double[] ad = a.data();
-        double[] bd = b.data();
+        float[] ad = a.data();
+        float[] bd = b.data();
         double[] result = new double[ad.length];
         for (int i = 0; i < ad.length; i++) {
             result[i] = ad[i] + bd[i];

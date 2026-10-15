@@ -44,8 +44,8 @@ public class FocalLoss implements Loss {
         int classes = predictions.cols();
         double scale = 1.0 / batchSize;
         Tensor grad = new Tensor(batchSize, classes);
-        double[] pd = predictions.data();
-        double[] gd = grad.data();
+        float[] pd = predictions.data();
+        float[] gd = grad.data();
         for (int i = 0; i < batchSize; i++) {
             int label = labels[i];
             for (int j = 0; j < classes; j++) {
@@ -54,12 +54,12 @@ public class FocalLoss implements Loss {
                     double focalWeight = alpha * Math.pow(1.0 - p, gamma);
                     double dFocal = -gamma * alpha * Math.pow(1.0 - p, gamma - 1) * Math.log(p)
                                     - focalWeight / p;
-                    gd[i * classes + j] = dFocal * scale;
+                    gd[i * classes + j] = (float) (dFocal * scale);
                 } else {
                     double focalWeight = alpha * Math.pow(1.0 - p, gamma);
                     double dFocal = -gamma * alpha * Math.pow(1.0 - p, gamma - 1) * Math.log(p)
                                     - focalWeight / p;
-                    gd[i * classes + j] = 0.0;
+                    gd[i * classes + j] = 0.0f;
                 }
             }
         }

@@ -358,7 +358,7 @@ public class ImageReader {
         int batchSize = images.size();
         int pixels = h * w;
 
-        double[] allData = new double[batchSize * channels * pixels];
+        float[] allData = new float[batchSize * channels * pixels];
 
         for (int b = 0; b < batchSize; b++) {
             Tensor t = toTensor(images.get(b), mode, normalize);
@@ -394,7 +394,7 @@ public class ImageReader {
 
         int pixels = width * height;
         byte[] buffer = new byte[channels * pixels];
-        double[] data = tensor.data();
+        float[] data = tensor.data();
 
         for (int c = 0; c < channels; c++) {
             for (int y = 0; y < height; y++) {
@@ -430,7 +430,7 @@ public class ImageReader {
         int pixelsPerImage = channels * width * height;
 
         for (int b = 0; b < batch.rows(); b++) {
-            double[] imgData = new double[pixelsPerImage];
+            float[] imgData = new float[pixelsPerImage];
             System.arraycopy(batch.data(), b * pixelsPerImage, imgData, 0, pixelsPerImage);
             Tensor single = Tensor.fromFlat(imgData, 1, pixelsPerImage);
             images.add(tensorToImage(single, width, height, mode, normalized));

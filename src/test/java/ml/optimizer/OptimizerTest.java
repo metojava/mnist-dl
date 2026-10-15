@@ -28,7 +28,7 @@ class OptimizerTest {
     void testSGDUpdates() {
         List<Layer> layers = makeLayers();
         DenseLayer l0 = (DenseLayer) layers.get(0);
-        double[] origW = l0.weights().data().clone();
+        float[] origW = l0.weights().data().clone();
         simulateGradient(l0);
         SGD sgd = new SGD(0.01);
         sgd.step(layers, 0.01);
@@ -44,9 +44,9 @@ class OptimizerTest {
         DenseLayer l0 = (DenseLayer) layers.get(0);
         simulateGradient(l0);
         SGD sgd = new SGD(0.01, 0.9);
-        double[] w1 = l0.weights().data().clone();
+        float[] w1 = l0.weights().data().clone();
         sgd.step(layers, 0.01);
-        double[] w2 = l0.weights().data().clone();
+        float[] w2 = l0.weights().data().clone();
         simulateGradient(l0);
         sgd.step(layers, 0.01);
         assertNotEquals(w1[0], l0.weights().data()[0]);
@@ -56,7 +56,7 @@ class OptimizerTest {
     void testAdamUpdates() {
         List<Layer> layers = makeLayers();
         DenseLayer l0 = (DenseLayer) layers.get(0);
-        double[] origW = l0.weights().data().clone();
+        float[] origW = l0.weights().data().clone();
         simulateGradient(l0);
         Adam adam = new Adam(0.001);
         adam.step(layers, 0.001);
@@ -72,7 +72,7 @@ class OptimizerTest {
         DenseLayer l0 = (DenseLayer) layers.get(0);
         simulateGradient(l0);
         AdamW adamW = new AdamW(0.001, 0.01);
-        double[] w1 = l0.weights().data().clone();
+        float[] w1 = l0.weights().data().clone();
         adamW.step(layers, 0.001);
         boolean changed = false;
         for (int i = 0; i < w1.length; i++)
@@ -86,7 +86,7 @@ class OptimizerTest {
         DenseLayer l0 = (DenseLayer) layers.get(0);
         simulateGradient(l0);
         RMSProp rms = new RMSProp(0.001);
-        double[] w1 = l0.weights().data().clone();
+        float[] w1 = l0.weights().data().clone();
         rms.step(layers, 0.001);
         boolean changed = false;
         for (int i = 0; i < w1.length; i++)
@@ -100,7 +100,7 @@ class OptimizerTest {
         DenseLayer l0 = (DenseLayer) layers.get(0);
         simulateGradient(l0);
         AdaGrad adagrad = new AdaGrad(0.01);
-        double[] w1 = l0.weights().data().clone();
+        float[] w1 = l0.weights().data().clone();
         adagrad.step(layers, 0.01);
         boolean changed = false;
         for (int i = 0; i < w1.length; i++)

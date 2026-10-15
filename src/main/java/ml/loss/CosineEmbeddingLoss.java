@@ -78,14 +78,14 @@ public class CosineEmbeddingLoss implements Loss {
             if (target == 1) {
                 for (int j = 0; j < cols; j++) {
                     double v = predictions.get(i, j);
-                    grad.data()[i * cols + j] = -(1.0 / norm - v * v / (norm * norm * norm)) / batchSize;
+                    grad.data()[i * cols + j] = (float) (-(1.0 / norm - v * v / (norm * norm * norm)) / batchSize);
                 }
             } else {
                 double cosSim = predictions.get(i, 0) / norm;
                 if (cosSim > margin) {
                     for (int j = 0; j < cols; j++) {
                         double v = predictions.get(i, j);
-                        grad.data()[i * cols + j] = (1.0 / norm - v * v / (norm * norm * norm)) / batchSize;
+                        grad.data()[i * cols + j] = (float) ((1.0 / norm - v * v / (norm * norm * norm)) / batchSize);
                     }
                 }
             }
@@ -114,15 +114,15 @@ public class CosineEmbeddingLoss implements Loss {
                 for (int j = 0; j < cols; j++) {
                     double a = x1.get(i, j);
                     double b = x2.get(i, j);
-                    grad1.data()[i * cols + j] = -(b / denom - dot * a / (norm1 * denom)) / batchSize;
-                    grad2.data()[i * cols + j] = -(a / denom - dot * b / (norm2 * denom)) / batchSize;
+                    grad1.data()[i * cols + j] = (float) (-(b / denom - dot * a / (norm1 * denom)) / batchSize);
+                    grad2.data()[i * cols + j] = (float) (-(a / denom - dot * b / (norm2 * denom)) / batchSize);
                 }
             } else if (cosSim > margin) {
                 for (int j = 0; j < cols; j++) {
                     double a = x1.get(i, j);
                     double b = x2.get(i, j);
-                    grad1.data()[i * cols + j] = (b / denom - dot * a / (norm1 * denom)) / batchSize;
-                    grad2.data()[i * cols + j] = (a / denom - dot * b / (norm2 * denom)) / batchSize;
+                    grad1.data()[i * cols + j] = (float) ((b / denom - dot * a / (norm1 * denom)) / batchSize);
+                    grad2.data()[i * cols + j] = (float) ((a / denom - dot * b / (norm2 * denom)) / batchSize);
                 }
             }
         }

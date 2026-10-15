@@ -33,7 +33,7 @@ public class MNISTLoader {
             byte[] buffer = new byte[count * pixels];
             dis.readFully(buffer);
             for (int i = 0; i < buffer.length; i++)
-                images.data()[i] = (buffer[i] & 0xFF) / 255.0;
+                images.data()[i] = (float) ((buffer[i] & 0xFF) / 255.0);
             return images;
         } catch (IOException e) {
             throw new ModelIOException("Failed to load images from " + filepath + ": " + e.getMessage(), e);

@@ -51,7 +51,7 @@ public class KLDivergenceLoss implements Loss {
             for (int j = 0; j < classes; j++) {
                 double p = Math.max(predictions.get(i, j), epsilon);
                 if (j == label) {
-                    grad.data()[i * classes + j] = -1.0 / p * scale;
+                    grad.data()[i * classes + j] = (float) (-1.0 / p * scale);
                 }
             }
         }
@@ -66,7 +66,7 @@ public class KLDivergenceLoss implements Loss {
             for (int j = 0; j < cols; j++) {
                 double q = Math.max(targets.get(i, j), epsilon);
                 double p = Math.max(predictions.get(i, j), epsilon);
-                grad.data()[i * cols + j] = -q / p / rows;
+                grad.data()[i * cols + j] = (float) (-q / p / rows);
             }
         }
         return grad;

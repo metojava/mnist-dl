@@ -189,7 +189,7 @@ public class Functional {
             for (Tensor t : tensors) {
                 for (int r = 0; r < rows; r++) {
                     for (int c = 0; c < t.cols(); c++) {
-                        result.data()[r * totalCols + offset + c] = t.get(r, c);
+                        result.data()[r * totalCols + offset + c] = (float) t.get(r, c);
                     }
                 }
                 offset += t.cols();

@@ -22,8 +22,8 @@ public class BinaryClassificationExample {
         java.util.Random rng = new java.util.Random(42);
 
         for (int i = 0; i < samples; i++) {
-            double[] vals = new double[features];
-            for (int j = 0; j < features; j++) vals[j] = rng.nextGaussian();
+            float[] vals = new float[features];
+            for (int j = 0; j < features; j++) vals[j] = (float) rng.nextGaussian();
             System.arraycopy(vals, 0, X.data(), i * features, features);
             y[i] = (vals[0] + vals[1] > 0) ? 1 : 0;
         }

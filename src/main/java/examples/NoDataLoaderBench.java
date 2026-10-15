@@ -47,7 +47,7 @@ public class NoDataLoaderBench {
                 int bSize = bEnd - bStart;
 
                 // manually build batch
-                double[] imgData = new double[bSize * 784];
+                float[] imgData = new float[bSize * 784];
                 int[] labels = new int[bSize];
                 for (int i = 0; i < bSize; i++) {
                     int idx = perm[bStart + i];

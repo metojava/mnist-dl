@@ -108,8 +108,16 @@ public class ModelSerializer {
                     DenseLayer d = new DenseLayer(in, out);
                     double[] w = extractDoubles(lj, "weights");
                     double[] b = extractDoubles(lj, "bias");
-                    if (w != null) System.arraycopy(w, 0, d.weights().data(), 0, Math.min(w.length, d.weights().size()));
-                    if (b != null) System.arraycopy(b, 0, d.bias().data(), 0, Math.min(b.length, d.bias().size()));
+                    if (w != null) {
+                        float[] td = d.weights().data();
+                        int n = Math.min(w.length, td.length);
+                        for (int k = 0; k < n; k++) td[k] = (float) w[k];
+                    }
+                    if (b != null) {
+                        float[] td = d.bias().data();
+                        int n = Math.min(b.length, td.length);
+                        for (int k = 0; k < n; k++) td[k] = (float) b[k];
+                    }
                     d.invalidateTranspose();
                     yield d;
                 }
@@ -120,10 +128,14 @@ public class ModelSerializer {
                     double[] b2 = extractDoubles(lj, "beta");
                     double[] rm = extractDoubles(lj, "runningMean");
                     double[] rv = extractDoubles(lj, "runningVar");
-                    if (g != null) System.arraycopy(g, 0, bn.gamma().data(), 0, fs);
-                    if (b2 != null) System.arraycopy(b2, 0, bn.beta().data(), 0, fs);
-                    if (rm != null) System.arraycopy(rm, 0, bn.runningMean().data(), 0, fs);
-                    if (rv != null) System.arraycopy(rv, 0, bn.runningVar().data(), 0, fs);
+                    float[] gtd = bn.gamma().data();
+                    float[] btd = bn.beta().data();
+                    float[] rmtd = bn.runningMean().data();
+                    float[] rvtd = bn.runningVar().data();
+                    if (g != null) { int n = Math.min(g.length, fs); for (int k = 0; k < n; k++) gtd[k] = (float) g[k]; }
+                    if (b2 != null) { int n = Math.min(b2.length, fs); for (int k = 0; k < n; k++) btd[k] = (float) b2[k]; }
+                    if (rm != null) { int n = Math.min(rm.length, fs); for (int k = 0; k < n; k++) rmtd[k] = (float) rm[k]; }
+                    if (rv != null) { int n = Math.min(rv.length, fs); for (int k = 0; k < n; k++) rvtd[k] = (float) rv[k]; }
                     yield bn;
                 }
                 case "ml.layer.LayerNorm" -> {
@@ -131,8 +143,10 @@ public class ModelSerializer {
                     LayerNorm ln = new LayerNorm(fs);
                     double[] g = extractDoubles(lj, "gamma");
                     double[] b2 = extractDoubles(lj, "beta");
-                    if (g != null) System.arraycopy(g, 0, ln.gamma().data(), 0, fs);
-                    if (b2 != null) System.arraycopy(b2, 0, ln.beta().data(), 0, fs);
+                    float[] lg = ln.gamma().data();
+                    float[] lb = ln.beta().data();
+                    if (g != null) { int n = Math.min(g.length, fs); for (int k = 0; k < n; k++) lg[k] = (float) g[k]; }
+                    if (b2 != null) { int n = Math.min(b2.length, fs); for (int k = 0; k < n; k++) lb[k] = (float) b2[k]; }
                     yield ln;
                 }
                 case "ml.layer.Flatten" -> new Flatten();
@@ -172,10 +186,18 @@ public class ModelSerializer {
                     Conv2D c = new Conv2D(inC, outC, ks, st, pa, new java.util.Random());
                     for (int i = 0; i < c.kernelCount(); i++) {
                         double[] k = extractDoubles(lj, "kernel" + i);
-                        if (k != null) System.arraycopy(k, 0, c.kernel(i).data(), 0, Math.min(k.length, c.kernel(i).size()));
+                        if (k != null) {
+                            float[] kt = c.kernel(i).data();
+                            int n = Math.min(k.length, kt.length);
+                            for (int kk = 0; kk < n; kk++) kt[kk] = (float) k[kk];
+                        }
                     }
                     double[] b2 = extractDoubles(lj, "bias");
-                    if (b2 != null) System.arraycopy(b2, 0, c.bias().data(), 0, Math.min(b2.length, c.outputSize()));
+                    if (b2 != null) {
+                        float[] bt = c.bias().data();
+                        int n = Math.min(b2.length, bt.length);
+                        for (int kk = 0; kk < n; kk++) bt[kk] = (float) b2[kk];
+                    }
                     yield c;
                 }
                 default -> throw new ModelIOException("Unknown layer type: " + type);
@@ -313,8 +335,12 @@ public class ModelSerializer {
                 double[] wData = readDoubles(dis);
                 double[] bData = readDoubles(dis);
                 DenseLayer d = new DenseLayer(inSize, outSize);
-                System.arraycopy(wData, 0, d.weights().data(), 0, wData.length);
-                System.arraycopy(bData, 0, d.bias().data(), 0, bData.length);
+                float[] wtd = d.weights().data();
+                float[] btd = d.bias().data();
+                int wn = Math.min(wData.length, wtd.length);
+                for (int k = 0; k < wn; k++) wtd[k] = (float) wData[k];
+                int bn = Math.min(bData.length, btd.length);
+                for (int k = 0; k < bn; k++) btd[k] = (float) bData[k];
                 d.invalidateTranspose();
                 yield d;
             }
@@ -325,10 +351,18 @@ public class ModelSerializer {
                 double[] b = readDoubles(dis);
                 double[] rm = readDoubles(dis);
                 double[] rv = readDoubles(dis);
-                System.arraycopy(g, 0, bn.gamma().data(), 0, fs);
-                System.arraycopy(b, 0, bn.beta().data(), 0, fs);
-                System.arraycopy(rm, 0, bn.runningMean().data(), 0, fs);
-                System.arraycopy(rv, 0, bn.runningVar().data(), 0, fs);
+                float[] gtd = bn.gamma().data();
+                float[] btd = bn.beta().data();
+                float[] rmtd = bn.runningMean().data();
+                float[] rvtd = bn.runningVar().data();
+                int n1 = Math.min(g.length, fs);
+                for (int k = 0; k < n1; k++) gtd[k] = (float) g[k];
+                int n2 = Math.min(b.length, fs);
+                for (int k = 0; k < n2; k++) btd[k] = (float) b[k];
+                int n3 = Math.min(rm.length, fs);
+                for (int k = 0; k < n3; k++) rmtd[k] = (float) rm[k];
+                int n4 = Math.min(rv.length, fs);
+                for (int k = 0; k < n4; k++) rvtd[k] = (float) rv[k];
                 yield bn;
             }
             case "ml.layer.LayerNorm" -> {
@@ -336,8 +370,12 @@ public class ModelSerializer {
                 LayerNorm ln = new LayerNorm(fs);
                 double[] g = readDoubles(dis);
                 double[] b = readDoubles(dis);
-                System.arraycopy(g, 0, ln.gamma().data(), 0, fs);
-                System.arraycopy(b, 0, ln.beta().data(), 0, fs);
+                float[] lg = ln.gamma().data();
+                float[] lb = ln.beta().data();
+                int n1 = Math.min(g.length, fs);
+                for (int k = 0; k < n1; k++) lg[k] = (float) g[k];
+                int n2 = Math.min(b.length, fs);
+                for (int k = 0; k < n2; k++) lb[k] = (float) b[k];
                 yield ln;
             }
             case "ml.layer.Flatten" -> new Flatten();
@@ -424,10 +462,14 @@ public class ModelSerializer {
                 Conv2D c = new Conv2D(inC, outC, ks, st, pa, new java.util.Random());
                 for (int i = 0; i < c.kernelCount(); i++) {
                     double[] k = readDoubles(dis);
-                    System.arraycopy(k, 0, c.kernel(i).data(), 0, k.length);
+                    float[] kt = c.kernel(i).data();
+                    int kn = Math.min(k.length, kt.length);
+                    for (int kk = 0; kk < kn; kk++) kt[kk] = (float) k[kk];
                 }
                 double[] b2 = readDoubles(dis);
-                System.arraycopy(b2, 0, c.bias().data(), 0, b2.length);
+                float[] bt = c.bias().data();
+                int bn = Math.min(b2.length, bt.length);
+                for (int kk = 0; kk < bn; kk++) bt[kk] = (float) b2[kk];
                 yield c;
             }
             case "ml.layer.Embedding" -> {
@@ -435,7 +477,9 @@ public class ModelSerializer {
                 int dim = dis.readInt();
                 Embedding e = new Embedding(vocab, dim);
                 double[] w = readDoubles(dis);
-                System.arraycopy(w, 0, e.weights().data(), 0, w.length);
+                float[] ew = e.weights().data();
+                int en = Math.min(w.length, ew.length);
+                for (int k = 0; k < en; k++) ew[k] = (float) w[k];
                 yield e;
             }
             default -> throw new ModelIOException("Unknown layer type: " + type);
@@ -508,6 +552,17 @@ public class ModelSerializer {
 
     // ==================== HELPERS ====================
 
+    private static StringBuilder doublesToJson(float[] arr) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < arr.length; i++) {
+            if (i > 0) sb.append(", ");
+            if (Float.isNaN(arr[i]) || Float.isInfinite(arr[i])) sb.append("0.0");
+            else sb.append(arr[i]);
+        }
+        sb.append("]");
+        return sb;
+    }
+    
     private static StringBuilder doublesToJson(double[] arr) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < arr.length; i++) {
@@ -519,9 +574,17 @@ public class ModelSerializer {
         return sb;
     }
 
+    public static void writeDoubles(DataOutputStream dos, float[] values) throws IOException {
+        ByteBuffer buf = ByteBuffer.allocate(values.length * 4).order(ByteOrder.LITTLE_ENDIAN);
+        for (float v : values) buf.putFloat(v);
+        byte[] bytes = buf.array();
+        dos.writeInt(bytes.length);
+        dos.write(bytes);
+    }
+    
     public static void writeDoubles(DataOutputStream dos, double[] values) throws IOException {
-        ByteBuffer buf = ByteBuffer.allocate(values.length * 8).order(ByteOrder.LITTLE_ENDIAN);
-        for (double v : values) buf.putDouble(v);
+        ByteBuffer buf = ByteBuffer.allocate(values.length * 4).order(ByteOrder.LITTLE_ENDIAN);
+        for (double v : values) buf.putFloat((float) v);
         byte[] bytes = buf.array();
         dos.writeInt(bytes.length);
         dos.write(bytes);
@@ -531,9 +594,12 @@ public class ModelSerializer {
         int byteLen = dis.readInt();
         byte[] bytes = new byte[byteLen];
         dis.readFully(bytes);
-        int count = byteLen / 8;
+        int count = byteLen / 4;
         double[] result = new double[count];
-        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asDoubleBuffer().get(result);
+        ByteBuffer buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 0; i < count; i++) {
+            result[i] = buf.getFloat();
+        }
         return result;
     }
 
@@ -778,9 +844,9 @@ public class ModelSerializer {
                 dos.write(headerBytes);
                 // write tensor data little-endian F64
                 for (Entry e : entries) {
-                    double[] data = e.tensor.data();
+                    float[] data = e.tensor.data();
                     ByteBuffer tbuf = ByteBuffer.allocate(data.length * 8).order(ByteOrder.LITTLE_ENDIAN);
-                    for (double v : data) tbuf.putDouble(v);
+                    for (float v : data) tbuf.putDouble(v);
                     dos.write(tbuf.array());
                 }
             }
@@ -839,9 +905,9 @@ public class ModelSerializer {
                 int elem = rows * cols;
                 if (!dtype.equals("F64")) throw new ModelIOException("Unsupported dtype " + dtype);
                 if (offEnd - offStart != (long) elem * 8) throw new ModelIOException("Offset mismatch for " + name);
-                double[] vals = new double[elem];
+                float[] vals = new float[elem];
                 ByteBuffer tbuf = ByteBuffer.wrap(dataBytes, (int) offStart, (int) (offEnd - offStart)).order(ByteOrder.LITTLE_ENDIAN);
-                for (int i = 0; i < elem; i++) vals[i] = tbuf.getDouble();
+                for (int i = 0; i < elem; i++) vals[i] = (float) tbuf.getDouble();
 
                 // Map name to layer
                 // name format layer_{idx}.Type.param or layer_{idx}.Type.kernel_{k}
@@ -1002,19 +1068,54 @@ public class ModelSerializer {
                 for (int i = 0; i < parts.length; i++) vals[i] = Double.parseDouble(parts[i].trim());
             }
             if (layer instanceof DenseLayer d) {
-                if (suffix.equals("W")) { System.arraycopy(vals, 0, d.weights().data(), 0, Math.min(vals.length, d.weights().size())); d.invalidateTranspose(); }
-                else if (suffix.equals("B")) System.arraycopy(vals, 0, d.bias().data(), 0, Math.min(vals.length, d.bias().size()));
+                if (suffix.equals("W")) {
+                    float[] td = d.weights().data();
+                    int n = Math.min(vals.length, td.length);
+                    for (int k = 0; k < n; k++) td[k] = (float) vals[k];
+                    d.invalidateTranspose();
+                } else if (suffix.equals("B")) {
+                    float[] td = d.bias().data();
+                    int n = Math.min(vals.length, td.length);
+                    for (int k = 0; k < n; k++) td[k] = (float) vals[k];
+                }
             } else if (layer instanceof Conv2D c) {
-                if (suffix.startsWith("K")) { int k = Integer.parseInt(suffix.substring(1)); System.arraycopy(vals, 0, c.kernel(k).data(), 0, Math.min(vals.length, c.kernel(k).size())); }
-                else if (suffix.equals("B")) { Tensor b = c.bias(); System.arraycopy(vals, 0, b.data(), 0, Math.min(vals.length, b.size())); }
+                if (suffix.startsWith("K")) {
+                    int k = Integer.parseInt(suffix.substring(1));
+                    float[] kt = c.kernel(k).data();
+                    int n = Math.min(vals.length, kt.length);
+                    for (int kk = 0; kk < n; kk++) kt[kk] = (float) vals[kk];
+                } else if (suffix.equals("B")) {
+                    Tensor b = c.bias();
+                    float[] bt = b.data();
+                    int n = Math.min(vals.length, bt.length);
+                    for (int kk = 0; kk < n; kk++) bt[kk] = (float) vals[kk];
+                }
             } else if (layer instanceof BatchNorm bn) {
-                if (suffix.equals("gamma")) System.arraycopy(vals, 0, bn.gamma().data(), 0, Math.min(vals.length, bn.gamma().size()));
-                else if (suffix.equals("beta")) System.arraycopy(vals, 0, bn.beta().data(), 0, Math.min(vals.length, bn.beta().size()));
+                if (suffix.equals("gamma")) {
+                    float[] gtd = bn.gamma().data();
+                    int n = Math.min(vals.length, gtd.length);
+                    for (int kk = 0; kk < n; kk++) gtd[kk] = (float) vals[kk];
+                } else if (suffix.equals("beta")) {
+                    float[] btd = bn.beta().data();
+                    int n = Math.min(vals.length, btd.length);
+                    for (int kk = 0; kk < n; kk++) btd[kk] = (float) vals[kk];
+                }
             } else if (layer instanceof LayerNorm ln) {
-                if (suffix.equals("gamma")) System.arraycopy(vals, 0, ln.gamma().data(), 0, Math.min(vals.length, ln.gamma().size()));
-                else if (suffix.equals("beta")) System.arraycopy(vals, 0, ln.beta().data(), 0, Math.min(vals.length, ln.beta().size()));
+                if (suffix.equals("gamma")) {
+                    float[] gtd = ln.gamma().data();
+                    int n = Math.min(vals.length, gtd.length);
+                    for (int kk = 0; kk < n; kk++) gtd[kk] = (float) vals[kk];
+                } else if (suffix.equals("beta")) {
+                    float[] btd = ln.beta().data();
+                    int n = Math.min(vals.length, btd.length);
+                    for (int kk = 0; kk < n; kk++) btd[kk] = (float) vals[kk];
+                }
             } else if (layer instanceof Embedding e) {
-                if (suffix.equals("W")) System.arraycopy(vals, 0, e.weights().data(), 0, Math.min(vals.length, e.weights().size()));
+                if (suffix.equals("W")) {
+                    float[] ew = e.weights().data();
+                    int n = Math.min(vals.length, ew.length);
+                    for (int kk = 0; kk < n; kk++) ew[kk] = (float) vals[kk];
+                }
             }
         }
         return net;

@@ -42,7 +42,7 @@ public class AvgPool implements Layer {
                             }
                         }
                     }
-                    output.data()[b * outSize + oh * outW + ow] = sum * invArea;
+                    output.data()[b * outSize + oh * outW + ow] = (float) (sum * invArea);
                 }
             }
         }

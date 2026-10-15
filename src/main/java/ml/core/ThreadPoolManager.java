@@ -113,24 +113,9 @@ public final class ThreadPoolManager {
                                    java.util.function.IntConsumer action) {
         int len = toExclusive - fromInclusive;
         if (len <= 0) return;
-        int threads = computePoolSize();
-        int threshold = Math.max(1, len / threads);
-        if (len <= threshold) {
-            for (int i = fromInclusive; i < toExclusive; i++) action.accept(i);
-            return;
-        }
-        CompletableFuture<?>[] futures = new CompletableFuture[threads];
-        int chunk = (len + futures.length - 1) / futures.length;
-        for (int t = 0; t < futures.length; t++) {
-            int start = fromInclusive + t * chunk;
-            int end = Math.min(start + chunk, toExclusive);
-            if (start >= toExclusive) { futures[t] = CompletableFuture.completedFuture(null); continue; }
-            final int s = start, e = end;
-            futures[t] = CompletableFuture.runAsync(() -> {
-                for (int i = s; i < e; i++) action.accept(i);
-            }, compute());
-        }
-        CompletableFuture.allOf(futures).join();
+        Parallel.parallelRows(len, (a, b) -> {
+            for (int i = a; i < b; i++) action.accept(fromInclusive + i);
+        });
     }
 
     // ==================== SHUTDOWN ====================

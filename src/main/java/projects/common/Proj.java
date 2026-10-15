@@ -36,9 +36,9 @@ public final class Proj {
         for (int i = 0; i < n; i++) order[i] = i;
         List<Integer> list = new ArrayList<>(List.of(order));
         java.util.Collections.shuffle(list, rng);
-        double[] xd = x.data();
+        float[] xd = x.data();
         int cols = x.cols();
-        double[] nx = new double[xd.length];
+        float[] nx = new float[xd.length];
         int[] ny = new int[n];
         for (int i = 0; i < n; i++) {
             int src = list.get(i);

@@ -247,12 +247,12 @@
       <div class="label">Bugs Found &amp; Fixed</div>
     </div>
     <div class="meta-item">
-      <div class="value">~24s</div>
+      <div class="value">~6.8s</div>
       <div class="label">Per Epoch (4 layers)</div>
     </div>
     <div class="meta-item">
-      <div class="value">~7s</div>
-      <div class="label">Per Epoch (2 layers)</div>
+      <div class="value">~2.5s</div>
+      <div class="label">Per Epoch (3 layers)</div>
     </div>
   </div>
 </div>
@@ -334,7 +334,7 @@ CompletableFuture.allOf(futures).join();</code></pre>
 <table>
   <tr><th>Threshold</th><th>Value</th><th>Used For</th></tr>
   <tr><td><span class="inline-code">PARALLEL_THRESHOLD</span></td><td>50,000 elements</td><td>Element-wise ops, reductions, transpose</td></tr>
-  <tr><td><span class="inline-code">MATMUL_PARALLEL_OPS</span></td><td>2,000,000 FLOPs</td><td>Matrix multiplication (m&times;n&times;k)</td></tr>
+  <tr><td><span class="inline-code">MATMUL_PARALLEL_OPS</span></td><td>4,000,000 FLOPs</td><td>Matrix multiplication (m&times;n&times;k)</td></tr>
 </table>
 
 <!-- ============================================================ -->
@@ -745,6 +745,117 @@ public Tensor backward(Tensor gradient) {
 }</code></pre>
 </div>
 
+<!-- Opt 6 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> Store parameters as <code>float[]</code> instead of <code>double[]</code></h3>
+
+<p>Every tensor in the library stores <span class="inline-code">float[]</span> rather than
+<span class="inline-code">double[]</span>. The GEMM kernels are <strong>memory-bandwidth bound</strong>,
+so halving the element width roughly halves the bytes moved per multiply-accumulate and lets twice as
+many values fit in each cache level. Hot loops keep accumulation in <code>float</code> (SIMD-friendly);
+transcendental activations still evaluate in double for range safety.</p>
+</div>
+
+<!-- Opt 7 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> Hand-blocked GEMM kernels</h3>
+
+<p>Profiling the 4-layer model showed <strong>~94% of CPU time inside two matrix kernels</strong>.
+Both were rewritten with explicit register blocking so the innermost loop performs only
+load / broadcast / multiply-add:</p>
+
+<pre><code><span class="diff-cmt">// gemmRows (C = A*B): cache-block over (j, k) + 8-wide register unroll</span>
+final int JC = 32, KC = 128;
+for (int jj = 0; jj &lt; p; jj += JC) {         <span class="diff-cmt">// j-tile</span>
+  for (int kk = 0; kk &lt; n; kk += KC) {       <span class="diff-cmt">// k-tile</span>
+    for (int i = r0; i &lt; r1; i++) {
+      for (int j = 0; j + 8 &lt;= jLen; j += 8) {
+        float c0..c7 = 0;
+        for (int k = kk; k &lt; kEnd; k++) {
+          float a = ad[aRow + k];
+          c0 += a*bd[bRow]; c1 += a*bd[bRow+1]; ... c7 += a*bd[bRow+7];
+        }
+        rd[resultRow+j] += c0; ... rd[resultRow+j+7] += c7;
+      }
+    }
+  }
+}</code></pre>
+
+<pre><code><span class="diff-cmt">// matmulTransposedA (C = A^T*B, used for dW): 4&times;4 register micro-kernel over k</span>
+for (int k = ib; k &lt; kEnd; k++) {           <span class="diff-cmt">// KB = 256 k-block</span>
+  float a0..a3 = ad[k*n + i .. +3];         <span class="diff-cmt">// 4 rows of A</span>
+  float b0..b3 = bd[k*p + j .. +3];         <span class="diff-cmt">// 4 contiguous cols of B</span>
+  c00 += a0*b0; c01 += a0*b1; c02 += a0*b2; c03 += a0*b3;
+  c10 += a1*b0; ...                          <span class="diff-cmt">// 16 FMAs per k</span>
+}
+<span class="diff-cmt">// each rd element is accumulated in a register over the whole k range and written once</span></code></pre>
+
+<div class="callout success">
+  <strong>Result:</strong> the heavy 4-layer Adam epoch dropped from <strong>11.4s to ~9s</strong>
+  from register blocking alone (before SIMD).
+</div>
+</div>
+
+<!-- Opt 8 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> Activation float loops + reusable buffers</h3>
+
+<p>All activations previously used <span class="inline-code">input.apply(x -&gt; ...)</span>, which
+allocated a fresh tensor on every forward pass and paid a lambda dispatch per element. They were
+rewritten as direct <code>float</code> loops with cached output/gradient buffers sized to the input
+(re-allocated only when the shape changes). Applies to ReLU, Softmax, Sigmoid, Tanh, ELU, GELU,
+HardSwish, LeakyReLU, LogSigmoid, Mish, PReLU, Selu, Softplus and Swish.</p>
+
+<pre><code><span class="diff-del">// BEFORE — allocation + DoubleUnaryOperator per element</span>
+protected Tensor computeForward(Tensor input) {
+    return input.apply(x -&gt; 1.0 / (1.0 + Math.exp(-x)));
+}
+
+<span class="diff-add">// AFTER — cached buffer, direct float loop</span>
+protected Tensor computeForward(Tensor input) {
+    if (outputBuffer == null || dims changed) outputBuffer = new Tensor(rows, cols);
+    float[] in = input.data(), out = outputBuffer.data();
+    for (int i = 0; i &lt; out.length; i++) {
+        double x = in[i];
+        out[i] = (float) (1.0 / (1.0 + Math.exp(-x)));
+    }
+    return outputBuffer;
+}</code></pre>
+</div>
+
+<!-- Opt 9 -->
+<div class="step opt">
+<h3><span class="badge opt">OPT</span> SIMD GEMM via the Vector API (~2&times;)</h3>
+
+<p>The biggest win. The JDK 17 incubator Vector API
+(<span class="inline-code">jdk.incubator.vector</span>) exposes <code>FloatVector</code> mapped to
+AVX2 (8 floats/lane). Both GEMM kernels were given a SIMD path that keeps the <em>exact same loop
+blocking and accumulation order</em> as the scalar code, so results are bit-for-bit identical
+(verified: <code>maxerr = 0</code> across all shapes).</p>
+
+<pre><code>FloatVector c = FloatVector.zero(SPECIES);
+for (int k = kk; k &lt; kEnd; k++) {
+    float a = ad[aRow + k];
+    FloatVector bv = FloatVector.fromArray(SPECIES, bd, k*p + jj + j);  <span class="diff-cmt">// 8 contiguous</span>
+    c = bv.mul(a).add(c);                                              <span class="diff-cmt">// broadcast-multiply-add</span>
+}
+FloatVector.fromArray(SPECIES, rd, resultRow + j).add(c).intoArray(rd, resultRow + j);</code></pre>
+
+<p>The SIMD kernels live in <span class="inline-code">VectorGemm</span> and are loaded
+<strong>reflectively</strong> by <code>Tensor</code>: if the module is unavailable the library
+silently falls back to <span class="inline-code">ScalarGemm</span>, so nothing breaks when running
+on a plain JVM. Enable it with:</p>
+
+<pre><code>mvn exec:java                       <span class="diff-cmt"># .mvn/jvm.config adds --add-modules jdk.incubator.vector</span>
+java --add-modules jdk.incubator.vector -cp "target/classes;..." examples.MNISTClassification</code></pre>
+
+<table>
+  <tr><th>Kernel (256&times;784&times;256)</th><th>Scalar</th><th>SIMD</th><th>Speedup</th></tr>
+  <tr><td><code>gemmRows</code> (forward / dX)</td><td>19.9 ms</td><td>9.3 ms</td><td>~2.1&times;</td></tr>
+  <tr><td><code>transposedARows</code> (dW)</td><td>23.9 ms</td><td>7.9 ms</td><td>~3.0&times;</td></tr>
+</table>
+</div>
+
 <!-- ============================================================ -->
 <h2><span class="num">05</span> &mdash; Performance Results</h2>
 
@@ -764,22 +875,29 @@ public Tensor backward(Tensor gradient) {
   <tr>
     <td>New (4 layers, Adam, full regularized)</td>
     <td>784&rarr;256&rarr;128&rarr;64&rarr;10 (Adam + dropout + gradclip)</td>
-    <td>~24,000</td>
+    <td><strong>~6,800</strong></td>
     <td>training in progress</td>
   </tr>
   <tr>
     <td>New (3 layers, SGD)</td>
     <td>784&rarr;128&rarr;64&rarr;10 (SGD)</td>
-    <td><strong>~10,000</strong></td>
+    <td><strong>~2,500</strong></td>
     <td>~88%+</td>
   </tr>
   <tr>
     <td>New (2 layers, SGD, Keras-matching)</td>
     <td>784&rarr;128&rarr;10 (SGD)</td>
-    <td><strong>~7,000</strong></td>
+    <td><strong>~2,600</strong></td>
     <td>~86%</td>
   </tr>
 </table>
+
+<div class="callout warning">
+  <strong>Methodology.</strong> Times are ms/epoch on an 8-core JDK&nbsp;17 machine with the SIMD
+  GEMM kernels enabled, measured as the second (warm) epoch of a 2-epoch run and rounded.
+  Absolute numbers swing roughly &plusmn;30% with machine load; the <em>relative</em> speedups
+  reported below were captured in the same window and are stable.
+</div>
 
 <!-- Layer comparison -->
 <h3>Why 4 layers is slower than 2&ndash;3</h3>
@@ -797,21 +915,21 @@ public Tensor backward(Tensor gradient) {
     <td>784&rarr;128&rarr;10</td>
     <td>101,770</td>
     <td>~32M</td>
-    <td><strong>~7,000</strong></td>
+    <td><strong>~2,600</strong></td>
   </tr>
   <tr>
     <td>3 layers</td>
     <td>784&rarr;128&rarr;64&rarr;10</td>
     <td>~109K</td>
     <td>~40M</td>
-    <td><strong>~10,000</strong></td>
+    <td><strong>~2,500</strong></td>
   </tr>
   <tr>
     <td>4 layers</td>
     <td>784&rarr;256&rarr;128&rarr;64&rarr;10</td>
     <td>242,762</td>
     <td>~115M</td>
-    <td><strong>~24,000</strong></td>
+    <td><strong>~6,800</strong></td>
   </tr>
 </table>
 
@@ -820,8 +938,10 @@ public Tensor backward(Tensor gradient) {
   and adds Dropout (mask generation + element-wise multiply) and gradient clipping overhead
   per layer. The extra time is purely computational &mdash; not a parallelism regression.
   <br><br>
-  For an apples-to-apples comparison on the same architecture, the parallel version is
-  <strong>2x faster</strong> than the old sequential code (7s vs 12&ndash;16s).
+  For an apples-to-apples comparison on the same architecture, the SIMD GEMM kernels make the
+  current code <strong>~2&times; faster</strong> than the scalar kernels (e.g. 4-layer
+  <strong>13.9s &rarr; 6.8s</strong>, 3-layer <strong>5.6s &rarr; 2.5s</strong> in the same
+  measurement window), and far faster than the original single-threaded code.
 </div>
 
 <!-- Full code examples -->
@@ -1107,9 +1227,10 @@ momentum buffers, learning rate schedules, and timestep counters.</p>
   </div>
   <div class="summary-card">
     <h4>Layer Count vs Speed</h4>
-    <p style="color: var(--text-dim)">More layers &ne; slower (at small scale). 2-layer: 7s/epoch,
-    3-layer: 10s/epoch, 4-layer: 24s/epoch. The 4-layer model has 3.6x more FLOPs &mdash;
-    the extra time is purely computational. Parallelism scales linearly with work, not layers.</p>
+    <p style="color: var(--text-dim)">More layers &ne; slower (at small scale). 2-layer: ~2.6s/epoch,
+    3-layer: ~2.5s/epoch, 4-layer: ~6.8s/epoch (SIMD GEMM). The 4-layer model has 3.6x more FLOPs &mdash;
+    the extra time is purely computational. Once the kernels are SIMD-accelerated, performance tracks
+    FLOPs, not layer count.</p>
   </div>
   <div class="summary-card">
     <h4>Test Gradients Early</h4>
@@ -1164,6 +1285,26 @@ momentum buffers, learning rate schedules, and timestep counters.</p>
     <td>System.arraycopy overwrites weights but cached transpose reflects random init</td>
   </tr>
   <tr>
+    <td>Store tensors as <code>float[]</code> instead of <code>double[]</code></td>
+    <td><span class="badge opt">DONE</span></td>
+    <td>Halves memory traffic in the bandwidth-bound GEMM kernels</td>
+  </tr>
+  <tr>
+    <td>Hand-blocked GEMM kernels (8-wide unroll, 4&times;4 micro-kernel)</td>
+    <td><span class="badge opt">DONE</span></td>
+    <td>4-layer epoch 11.4s &rarr; ~9s</td>
+  </tr>
+  <tr>
+    <td>Activation float loops + reusable output/gradient buffers</td>
+    <td><span class="badge opt">DONE</span></td>
+    <td>Removes per-element lambda dispatch and per-forward allocation</td>
+  </tr>
+  <tr>
+    <td>SIMD GEMM via incubator Vector API (reflective, scalar fallback)</td>
+    <td><span class="badge opt">DONE</span></td>
+    <td>~2&times; on GEMM (bit-identical); 4-layer ~13.9s &rarr; ~6.8s</td>
+  </tr>
+  <tr>
     <td>Replace ThreadPoolExecutor with ForkJoinPool</td>
     <td>Planned</td>
     <td>15&ndash;25% speedup via work-stealing + help-join</td>
@@ -1187,7 +1328,7 @@ momentum buffers, learning rate schedules, and timestep counters.</p>
 
 <hr>
 <p style="text-align:center; color: var(--text-dim); margin-top: 40px;">
-  Built from scratch in Java 17 &bull; ~7s/epoch on Fashion-MNIST &bull; 63 source files &bull; JSON + binary save/load
+  Built from scratch in Java 17 &bull; ~2.5&ndash;7 s/epoch on Fashion-MNIST (SIMD GEMM) &bull; 63 source files &bull; JSON + binary save/load
 </p>
 
 </div>

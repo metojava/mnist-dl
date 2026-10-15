@@ -97,7 +97,7 @@ public class RandomRotation implements Layer {
                             val += wx * wy * input.get(0, b * features + channelOffset + srcY1 * side + srcX1);
                         }
 
-                        output.data()[b * features + channelOffset + dstY * side + dstX] = val;
+                        output.data()[b * features + channelOffset + dstY * side + dstX] = (float) val;
                     }
                 }
             }

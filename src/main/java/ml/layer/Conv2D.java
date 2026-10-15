@@ -80,7 +80,7 @@ public class Conv2D implements Layer {
                             }
                         }
                         int outIdx = b * outSize + oc * h * w + oh * w + ow;
-                        output.data()[outIdx] = sum;
+                        output.data()[outIdx] = (float) sum;
                     }
                 }
             }
@@ -131,10 +131,10 @@ public class Conv2D implements Layer {
     public void update(double learningRate) {
         double scale = learningRate / Math.max(1, lastBatch);
         for (int oc = 0; oc < outChannels; oc++) {
-            double[] kd = kernels[oc].data();
+            float[] kd = kernels[oc].data();
             int gradBase = oc * kd.length;
             for (int i = 0; i < kd.length; i++) {
-                kd[i] -= scale * kernelGrads[gradBase + i];
+                kd[i] -= (float) (scale * kernelGrads[gradBase + i]);
                 kernelGrads[gradBase + i] = 0.0;
             }
             biases[oc] -= scale * biasGrads[oc];
@@ -163,7 +163,7 @@ public class Conv2D implements Layer {
     public int padding() { return padding; }
     public Tensor bias() {
         Tensor b = Tensor.zeros(1, outChannels);
-        for (int i = 0; i < outChannels; i++) b.data()[i] = biases[i];
+        for (int i = 0; i < outChannels; i++) b.data()[i] = (float) biases[i];
         return b;
     }
 }

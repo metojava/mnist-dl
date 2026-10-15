@@ -27,7 +27,7 @@ public class OptimizerBenchmark {
             int label = rng.nextInt(classes);
             y[i] = label;
             for (int j = 0; j < features; j++)
-                X.data()[i * features + j] = rng.nextGaussian() + label * 0.5;
+                X.data()[i * features + j] = (float) (rng.nextGaussian() + label * 0.5);
         }
 
         int split = (int) (samples * 0.8);

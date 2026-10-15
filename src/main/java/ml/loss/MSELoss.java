@@ -35,7 +35,7 @@ public class MSELoss implements Loss {
         for (int i = 0; i < batchSize; i++) {
             for (int j = 0; j < classes; j++) {
                 double target = (j == labels[i]) ? 1.0 : 0.0;
-                grad.data()[i * classes + j] = 2.0 * (predictions.get(i, j) - target) / batchSize;
+                grad.data()[i * classes + j] = (float) (2.0 * (predictions.get(i, j) - target) / batchSize);
             }
         }
         return grad;

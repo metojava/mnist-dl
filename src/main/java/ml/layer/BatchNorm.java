@@ -39,14 +39,14 @@ public class BatchNorm implements Layer {
             Tensor sqDiff = diff.multiply(diff);
             Tensor variance = sqDiff.sumCols().multiply(1.0 / input.rows());
             for (int i = 0; i < featureSize; i++) {
-                runningMean.data()[i] = momentum * runningMean.data()[i] + (1 - momentum) * mean.data()[i];
-                runningVar.data()[i] = momentum * runningVar.data()[i] + (1 - momentum) * variance.data()[i];
+                runningMean.data()[i] = (float) (momentum * runningMean.data()[i] + (1 - momentum) * mean.data()[i]);
+                runningVar.data()[i] = (float) (momentum * runningVar.data()[i] + (1 - momentum) * variance.data()[i]);
             }
             Tensor norm = Tensor.zeros(input.rows(), featureSize);
             for (int i = 0; i < input.rows(); i++) {
                 for (int j = 0; j < featureSize; j++) {
                     double std = Math.sqrt(runningVar.data()[j] + epsilon);
-                    norm.data()[i * featureSize + j] = (input.data()[i * featureSize + j] - runningMean.data()[j]) / std;
+                    norm.data()[i * featureSize + j] = (float) ((input.data()[i * featureSize + j] - runningMean.data()[j]) / std);
                 }
             }
             lastNormalized = norm;
@@ -55,7 +55,7 @@ public class BatchNorm implements Layer {
             for (int i = 0; i < input.rows(); i++) {
                 for (int j = 0; j < featureSize; j++) {
                     double std = Math.sqrt(runningVar.data()[j] + epsilon);
-                    norm.data()[i * featureSize + j] = (input.data()[i * featureSize + j] - runningMean.data()[j]) / std;
+                    norm.data()[i * featureSize + j] = (float) ((input.data()[i * featureSize + j] - runningMean.data()[j]) / std);
                 }
             }
             lastNormalized = norm;

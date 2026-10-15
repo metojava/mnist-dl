@@ -24,9 +24,9 @@ public class Dropout extends ActivationLayer {
         this.training = training;
         if (!training) return input;
         mask = Tensor.zeros(input.rows(), input.cols());
-        double scale = 1.0 / (1.0 - rate);
+        float scale = (float) (1.0 / (1.0 - rate));
         for (int i = 0; i < mask.size(); i++) {
-            mask.data()[i] = rng.nextDouble() >= rate ? scale : 0;
+            mask.data()[i] = rng.nextDouble() >= rate ? scale : 0f;
         }
         Tensor output = Tensor.zeros(input.rows(), input.cols());
         for (int i = 0; i < input.size(); i++)
@@ -45,9 +45,9 @@ public class Dropout extends ActivationLayer {
         if (!training || mask == null) return gradient;
         int len = gradient.size();
         Tensor result = new Tensor(gradient.rows(), gradient.cols());
-        double[] gd = gradient.data();
-        double[] md = mask.data();
-        double[] rd = result.data();
+        float[] gd = gradient.data();
+        float[] md = mask.data();
+        float[] rd = result.data();
         for (int i = 0; i < len; i++)
             rd[i] = gd[i] * md[i];
         return result;

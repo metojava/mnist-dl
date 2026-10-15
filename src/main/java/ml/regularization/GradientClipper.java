@@ -56,11 +56,11 @@ public class GradientClipper {
             if (layer instanceof DenseLayer dense && dense.weightsGradient() != null) {
                 for (int i = 0; i < dense.weightsGradient().size(); i++) {
                     double v = dense.weightsGradient().data()[i];
-                    dense.weightsGradient().data()[i] = Math.max(-threshold, Math.min(threshold, v));
+                    dense.weightsGradient().data()[i] = (float) Math.max(-threshold, Math.min(threshold, v));
                 }
                 for (int i = 0; i < dense.biasGradient().size(); i++) {
                     double v = dense.biasGradient().data()[i];
-                    dense.biasGradient().data()[i] = Math.max(-threshold, Math.min(threshold, v));
+                    dense.biasGradient().data()[i] = (float) Math.max(-threshold, Math.min(threshold, v));
                 }
             }
         }

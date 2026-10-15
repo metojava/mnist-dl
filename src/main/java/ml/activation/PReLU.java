@@ -1,15 +1,14 @@
 package ml.activation;
 
 import ml.core.Tensor;
-import ml.exception.ShapeException;
 import ml.layer.ActivationLayer;
-
-import java.util.Random;
 
 public class PReLU extends ActivationLayer {
     private final double alphaInit;
     private double alpha;
     private double alphaGrad;
+    private Tensor outputBuffer;
+    private Tensor gradientBuffer;
 
     public PReLU(double alphaInit) {
         this.alphaInit = alphaInit;
@@ -26,25 +25,43 @@ public class PReLU extends ActivationLayer {
 
     @Override
     protected Tensor computeForward(Tensor input) {
-        return input.apply(x -> x > 0 ? x : alpha * x);
+        int rows = input.rows();
+        int cols = input.cols();
+        if (outputBuffer == null || outputBuffer.rows() != rows || outputBuffer.cols() != cols)
+            outputBuffer = new Tensor(rows, cols);
+
+        float[] in = input.data();
+        float[] out = outputBuffer.data();
+        for (int i = 0; i < out.length; i++) {
+            double x = in[i];
+            out[i] = (float) (x > 0 ? x : alpha * x);
+        }
+        return outputBuffer;
     }
 
     @Override
     public Tensor backward(Tensor gradient) {
+        int rows = lastInput.rows();
+        int cols = lastInput.cols();
+        if (gradientBuffer == null || gradientBuffer.rows() != rows || gradientBuffer.cols() != cols)
+            gradientBuffer = new Tensor(rows, cols);
+
         int len = lastInput.size();
-        Tensor result = new Tensor(lastInput.rows(), lastInput.cols());
+        float[] in = lastInput.data();
+        float[] g = gradient.data();
+        float[] r = gradientBuffer.data();
         double gradSum = 0;
         for (int i = 0; i < len; i++) {
-            double x = lastInput.data()[i];
+            double x = in[i];
             if (x > 0) {
-                result.data()[i] = gradient.data()[i];
+                r[i] = g[i];
             } else {
-                result.data()[i] = alpha * gradient.data()[i];
-                gradSum += gradient.data()[i] * x;
+                r[i] = (float) (alpha * g[i]);
+                gradSum += g[i] * x;
             }
         }
         this.alphaGrad = gradSum / len;
-        return result;
+        return gradientBuffer;
     }
 
     @Override

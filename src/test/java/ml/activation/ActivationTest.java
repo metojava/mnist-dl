@@ -79,7 +79,7 @@ class ActivationTest {
             assertTrue(output.get(0, j) > 0);
             sum += output.get(0, j);
         }
-        assertEquals(1.0, sum, 1e-9);
+        assertEquals(1.0, sum, 1e-6);
         assertTrue(output.get(0, 2) > output.get(0, 1));
         assertTrue(output.get(0, 1) > output.get(0, 0));
     }
@@ -92,7 +92,7 @@ class ActivationTest {
         for (int i = 0; i < 2; i++) {
             double sum = 0;
             for (int j = 0; j < 3; j++) sum += output.get(i, j);
-            assertEquals(1.0, sum, 1e-9);
+            assertEquals(1.0, sum, 1e-6);
         }
     }
 

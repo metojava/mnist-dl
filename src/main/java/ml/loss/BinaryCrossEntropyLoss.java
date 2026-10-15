@@ -46,7 +46,7 @@ public class BinaryCrossEntropyLoss implements Loss {
             for (int j = 0; j < classes; j++) {
                 double target = (j == label) ? 1.0 : 0.0;
                 double p = Math.max(Math.min(predictions.get(i, j), 1 - epsilon), epsilon);
-                grad.data()[i * classes + j] = (-target / p + (1 - target) / (1 - p)) / batchSize;
+                grad.data()[i * classes + j] = (float) ((-target / p + (1 - target) / (1 - p)) / batchSize);
             }
         }
         return grad;
@@ -59,7 +59,7 @@ public class BinaryCrossEntropyLoss implements Loss {
         for (int i = 0; i < predictions.size(); i++) {
             double p = Math.max(Math.min(predictions.data()[i], 1 - epsilon), epsilon);
             double t = targets.data()[i];
-            grad.data()[i] = (-t / p + (1 - t) / (1 - p)) / rows;
+            grad.data()[i] = (float) ((-t / p + (1 - t) / (1 - p)) / rows);
         }
         return grad;
     }

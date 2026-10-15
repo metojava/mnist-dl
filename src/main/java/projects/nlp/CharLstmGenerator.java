@@ -77,9 +77,10 @@ public class CharLstmGenerator {
         return row;
     }
 
-    static int sample(double[] probs, Random rng, double temperature) {
+    static int sample(float[] probs, Random rng, double temperature) {
         double[] p = new double[probs.length];
-        double max = java.util.Arrays.stream(probs).max().orElse(1);
+        double max = probs.length > 0 ? probs[0] : 1;
+        for (float v : probs) if (v > max) max = v;
         double sum = 0;
         for (int i = 0; i < probs.length; i++) { p[i] = Math.exp((probs[i] - max) / temperature); sum += p[i]; }
         double r = rng.nextDouble() * sum, acc = 0;

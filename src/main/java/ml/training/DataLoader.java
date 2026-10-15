@@ -45,7 +45,7 @@ public class DataLoader {
             pos = end;
             int count = end - start;
             int cols = images.cols();
-            double[] buf = new double[count * cols];
+            float[] buf = new float[count * cols];
             int[] batchLabels = new int[count];
             for (int i = 0; i < count; i++) {
                 int idx = indices[start + i];

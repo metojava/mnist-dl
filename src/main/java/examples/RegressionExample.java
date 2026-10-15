@@ -26,7 +26,7 @@ public class RegressionExample {
             double sum = trueBias;
             for (int j = 0; j < features; j++) {
                 double val = rng.nextGaussian();
-                X.data()[i * features + j] = val;
+                X.data()[i * features + j] = (float) val;
                 sum += val * trueWeights[j];
             }
             y[i] = sum + rng.nextGaussian() * 0.1;

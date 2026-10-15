@@ -38,7 +38,7 @@ public class DiagBench {
         Tensor output = network.forward(xBatch, true);
         System.out.println("\nForward output (before softmax): checking shape " + output.rows() + "x" + output.cols());
         System.out.println("Output row 0: ");
-        double[] row0 = output.data();
+        float[] row0 = output.data();
         for (int j = 0; j < Math.min(10, output.cols()); j++) {
             System.out.printf("  [%d]=%.6f", j, row0[j]);
         }
@@ -55,7 +55,7 @@ public class DiagBench {
         System.out.println("\nLoss gradient: sum=" + grad.sum() + " max=" + grad.max() + " min=" + grad.min());
 
         // Check gradient stats
-        double[] gd = grad.data();
+        float[] gd = grad.data();
         int nonZero = 0;
         for (double v : gd) if (v != 0) nonZero++;
         System.out.println("Loss gradient non-zero elements: " + nonZero + "/" + gd.length);
@@ -88,7 +88,7 @@ public class DiagBench {
         System.out.println("\n=== BEFORE UPDATE ===");
         for (Layer layer : network.getLayers()) {
             if (layer instanceof DenseLayer dense) {
-                double[] wData = dense.weights().data();
+                float[] wData = dense.weights().data();
                 double wMean = 0;
                 for (double v : wData) wMean += v;
                 wMean /= wData.length;
@@ -106,7 +106,7 @@ public class DiagBench {
         System.out.println("\n=== AFTER UPDATE ===");
         for (Layer layer : network.getLayers()) {
             if (layer instanceof DenseLayer dense) {
-                double[] wData = dense.weights().data();
+                float[] wData = dense.weights().data();
                 double wMean = 0;
                 for (double v : wData) wMean += v;
                 wMean /= wData.length;

@@ -1,0 +1,6 @@
+ml\loss\LossTest.class
+ml\core\ThreadPoolManagerTest.class
+ml\activation\ActivationTest.class
+ml\layer\DenseLayerTest.class
+ml\core\TensorTest.class
+ml\optimizer\OptimizerTest.class

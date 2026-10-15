@@ -4,38 +4,42 @@ import ml.core.Tensor;
 import ml.layer.ActivationLayer;
 
 public class Softmax extends ActivationLayer {
+    private Tensor outputBuffer;
+
     @Override
     protected Tensor computeForward(Tensor input) {
         int rows = input.rows();
         int cols = input.cols();
-        Tensor output = new Tensor(rows, cols);
-        double[] id = input.data();
-        double[] od = output.data();
+        if (outputBuffer == null || outputBuffer.rows() != rows || outputBuffer.cols() != cols)
+            outputBuffer = new Tensor(rows, cols);
+
+        float[] id = input.data();
+        float[] od = outputBuffer.data();
         for (int i = 0; i < rows; i++) {
             int offset = i * cols;
-            double max = Double.NEGATIVE_INFINITY;
+            float max = Float.NEGATIVE_INFINITY;
             for (int j = 0; j < cols; j++) {
-                double v = id[offset + j];
+                float v = id[offset + j];
                 if (v > max) max = v;
             }
-            double sum = 0;
+            float sum = 0.0f;
             for (int j = 0; j < cols; j++) {
-                double e = Math.exp(id[offset + j] - max);
+                float e = (float) Math.exp(id[offset + j] - max);
                 od[offset + j] = e;
                 sum += e;
             }
-            double invSum = 1.0 / sum;
+            float invSum = 1.0f / sum;
             for (int j = 0; j < cols; j++)
                 od[offset + j] *= invSum;
         }
-        return output;
+        return outputBuffer;
     }
 
     @Override
     public Tensor backward(Tensor gradient) {
         // CrossEntropyLoss.backward() already computes the combined
         // softmax + cross-entropy gradient: (predictions - one_hot) / batchSize.
-        // Pass through directly — do NOT apply the Softmax Jacobian again.
+        // Pass through directly - do NOT apply the Softmax Jacobian again.
         return gradient;
     }
 }

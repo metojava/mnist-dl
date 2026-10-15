@@ -122,7 +122,7 @@ public class CTCLoss implements Loss {
             }
             for (int c = 0; c < predictions.cols(); c++) {
                 double gradVal = Math.exp(classSum[c] - logProb - predictions.get(t, c));
-                grad.data()[c * T + t] = -gradVal;
+                grad.data()[c * T + t] = (float) (-gradVal);
             }
         }
 

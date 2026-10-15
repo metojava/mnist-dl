@@ -30,13 +30,13 @@ public class GradientChecker {
 
         for (int i = 0; i < Math.min(dense.weights().size(), 10); i++) {
             double orig = dense.weights().data()[i];
-            dense.weights().data()[i] = orig + epsilon;
+            dense.weights().data()[i] = (float) (orig + epsilon);
             Tensor outPlus = layer.forward(input);
             double lossPlus = outPlus.sum();
-            dense.weights().data()[i] = orig - epsilon;
+            dense.weights().data()[i] = (float) (orig - epsilon);
             Tensor outMinus = layer.forward(input);
             double lossMinus = outMinus.sum();
-            dense.weights().data()[i] = orig;
+            dense.weights().data()[i] = (float) orig;
 
             double numGrad = (lossPlus - lossMinus) / (2 * epsilon);
             double anaGrad = dense.weightsGradient().data()[i];

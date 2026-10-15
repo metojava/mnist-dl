@@ -88,7 +88,7 @@ public class SelfAttention implements Layer {
             double sum = 0;
             for (int j = 0; j < seqLen; j++) {
                 double val = Math.exp(input.get(i, j) - max);
-                result.data()[i * input.cols() + j] = val;
+                result.data()[i * input.cols() + j] = (float) val;
                 sum += val;
             }
             for (int j = 0; j < seqLen; j++) {

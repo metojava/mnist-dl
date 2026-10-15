@@ -32,8 +32,8 @@ public class CrossEntropyLoss implements Loss {
         int classes = predictions.cols();
         double scale = 1.0 / batchSize;
         Tensor grad = new Tensor(batchSize, classes);
-        double[] pd = predictions.data();
-        double[] gd = grad.data();
+        float[] pd = predictions.data();
+        float[] gd = grad.data();
         System.arraycopy(pd, 0, gd, 0, pd.length);
         for (int i = 0; i < batchSize; i++) {
             gd[i * classes + labels[i]] -= 1.0;

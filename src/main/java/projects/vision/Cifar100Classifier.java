@@ -87,7 +87,7 @@ public class Cifar100Classifier {
         }
         java.util.Collections.shuffle(positions, rng);   // de-cluster classes
 
-        double[] data = new double[total * 3 * 32 * 32];
+        float[] data = new float[total * 3 * 32 * 32];
         int[] labels = new int[total];
         int row = 0;
         for (int[] pos : positions) {

@@ -121,7 +121,7 @@ public class MultiHeadAttention implements Layer {
             double sum = 0;
             for (int j = 0; j < seqLenKV; j++) {
                 double val = Math.exp(input.get(i, j) - max);
-                result.data()[i * input.cols() + j] = val;
+                result.data()[i * input.cols() + j] = (float) val;
                 sum += val;
             }
             for (int j = 0; j < seqLenKV; j++) {
@@ -138,7 +138,7 @@ public class MultiHeadAttention implements Layer {
             for (int t = 0; t < seqLen; t++) {
                 for (int d = 0; d < headDim; d++) {
                     result.data()[0 * result.cols() + t * embedDim + h * headDim + d] =
-                        heads[h].get(0, t * headDim + d);
+                        (float) heads[h].get(0, t * headDim + d);
                 }
             }
         }

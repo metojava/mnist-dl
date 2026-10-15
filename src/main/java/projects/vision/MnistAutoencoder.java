@@ -86,7 +86,7 @@ public class MnistAutoencoder {
     private static Tensor addNoise(Tensor x, Random rng) {
         Tensor n = x.copy();
         for (int i = 0; i < n.data().length; i++)
-            if (rng.nextDouble() < 0.15) n.data()[i] = rng.nextBoolean() ? 1.0 : 0.0;
+            if (rng.nextDouble() < 0.15) n.data()[i] = (float) (rng.nextBoolean() ? 1.0 : 0.0);
         return n;
     }
 

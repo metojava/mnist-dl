@@ -58,7 +58,7 @@ public class MaxPool implements Layer {
                                 }
                             }
                         }
-                        output.data()[outChannelOffset + oh * outW + ow] = maxVal;
+                        output.data()[outChannelOffset + oh * outW + ow] = (float) maxVal;
                         argmax[outChannelOffset + oh * outW + ow] = maxIdx;
                     }
                 }

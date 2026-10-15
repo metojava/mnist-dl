@@ -1,0 +1,79 @@
+RESUME TODO — mnist-dl float[] conversion
+==========================================
+Project: C:\Users\dell\Desktop\mnist-dl  (Java 17, Maven, Windows PowerShell)
+Goal: make per-epoch training/eval as fast as the reference project
+      C:\Users\dell\Desktop\b\mnist-dl (old ~4.57s/epoch vs current ~12s).
+User approved: FULL LIBRARY float[] CONVERSION.
+Constraint: never run more than 2 epochs when benchmarking.
+
+WHAT IS ALREADY DONE
+--------------------
+1. ml/core/Parallel.java  — new: fixed daemon pool + CountDownLatch +
+   IN_POOL guard (nested calls run inline). Fixes evaluation deadlock.
+2. ml/core/Tensor.java    — REWRITTEN to store float[] (was double[]).
+   - data() NOW RETURNS float[] (only signature that changed).
+   - All other public signatures unchanged: get()/set(double),
+     sum()/mean()/max()/min() return double, row() -> double[],
+     setRow(double[]), toArray() -> double[][],
+     Tensor(double[]), Tensor(double[][]), fromFlat(double[],int,int).
+   - Cache-blocked float GEMM (JC=32,KC=128,4-col accum) + matmulTransposedA.
+   - All kernels still use Parallel.parallelRows.
+3. ml/layer/DenseLayer.java — buffer reuse + matmulTransposedA (hot path).
+4. ml/evaluation/Evaluator.java — sequential batching (deadlock fix).
+5. ml/core/ThreadPoolManager.java — parallelFor delegates to Parallel.
+
+IN PROGRESS: fixing compile errors caused by data() returning float[].
+Whole-project `mvn -o -q -DskipTests compile` had 200 errors / 38 files.
+Subagent fixes APPLIED to these groups:
+  - activations (ReLU, Softmax, Sigmoid, Softplus, Swish, Selu, LogSigmoid,
+    Mish, PReLU, HardSwish, GELU, ELU, LeakyReLU, Tanh)  [done]
+  - losses (CosineEmbeddingLoss, FocalLoss, BinaryCrossEntropyLoss,
+    CrossEntropyLoss, KLDivergenceLoss, HuberLoss, CTCLoss, MSELoss) [done]
+  - layers (LSTMLayer, DenseLayer, BatchNorm, Conv2D, MultiHeadAttention,
+    TransformerBlock, AvgPool, SelfAttention, MaxPool)  [done]
+  - examples/aug (DiagBench, OptimizerBenchmark, RegressionExample,
+    Dropout, RandomRotation, RandomZoom)  [done]
+
+NOT DONE / BLOCKER
+------------------
+- ml/network/ModelSerializer.java  — subagent task was CANCELLED.
+  ~16 errors: data() (float[]) passed to helpers typed double[]
+  (lines 52,53,56,57,58,59,62,63,77,79,83,210,211,214,215,216).
+  Fix: change the private serialize/binary helper params that only read
+  values to float[] (keep JSON/binary output equivalent). Load path that
+  builds double[] then uses fromFlat(double[],..)/new Tensor(double[]) is
+  fine — leave as double[].
+- ml/network/Functional.java:192 — lossy double->float (add (float) cast).
+
+NEXT STEPS
+----------
+1. Fix ModelSerializer.java + Functional.java (steps above).
+2. Run:  mvn -o -q -DskipTests compile   and fix any remaining/cascading
+   errors (agents may have missed writes needing (float) casts).
+3. Run full tests:  mvn -o test   (expect 61 tests to pass; float changes
+   may make tolerance-based asserts fail slightly — check and adjust only
+   if a test was exact-equality on doubles).
+4. Benchmark same architecture as old project (784-128-64-10, SGD,
+   batch 512) vs current; run <=2 epochs only. Compare to b\mnist-dl.
+5. If faster/satisfied, optionally update speed.html.
+
+FIX RULES (for remaining errors)
+--------------------------------
+- "float[] cannot be converted to double[]": change the local/field to
+  float[]; if it must stay double[], copy in a loop.
+- "possible lossy conversion from double to float": cast on store
+  (float) expr; Arrays.fill(float[], v) must use v as 0f.
+- Cascading: after a double[] local becomes float[], every WRITE from a
+  double expr needs (float); reads widen automatically.
+- System.arraycopy needs matching component types (float[]<->float[]).
+- Do NOT change public/protected signatures; do NOT add comments.
+
+KEY FILES
+---------
+- C:\Users\dell\Desktop\mnist-dl\src\main\java\ml\core\Tensor.java
+- C:\Users\dell\Desktop\mnist-dl\src\main\java\ml\core\Parallel.java
+- C:\Users\dell\Desktop\mnist-dl\src\main\java\ml\layer\DenseLayer.java
+- C:\Users\dell\Desktop\mnist-dl\src\main\java\ml\network\ModelSerializer.java  <-- START HERE
+- C:\Users\dell\Desktop\mnist-dl\src\main\java\ml\network\Functional.java
+- C:\Users\dell\Desktop\mnist-dl\src\main\java\ml\evaluation\Evaluator.java
+- Reference: C:\Users\dell\Desktop\b\mnist-dl (float[] design, 22 files)

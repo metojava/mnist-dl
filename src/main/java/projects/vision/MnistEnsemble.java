@@ -41,7 +41,7 @@ public class MnistEnsemble {
         Tensor[] bootX = new Tensor[3];
         int[][] bootY = new int[3][];
         for (int m = 0; m < 3; m++) {
-            double[] d = new double[n * 784];
+            float[] d = new float[n * 784];
             int[] y = new int[n];
             for (int i = 0; i < n; i++) {
                 int j = rng.nextInt(n);
